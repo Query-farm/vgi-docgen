@@ -4,7 +4,9 @@
 
 <p align="center"><em>A <a href="https://query.farm">Query.Farm</a> VGI worker for DuckDB.</em></p>
 
-# vgi-docgen
+# Mail-Merge SQL Data into DOCX & PDF in DuckDB
+
+> **vgi-docgen** · a [Query.Farm](https://query.farm) VGI worker · powered by docxtpl
 
 A [VGI](https://query.farm) worker that brings **mail-merge at scale from SQL**
 to DuckDB: merge query data *into* DOCX templates to produce filled documents —
