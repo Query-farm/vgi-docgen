@@ -1,15 +1,12 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "vgi-python",
+#     "vgi-python>=0.8.3",
 #     "docxtpl>=0.16",
 #     "docxcompose>=1.4",
 #     "python-docx>=1.1",
 #     "pyarrow",
 # ]
-#
-# [tool.uv.sources]
-# vgi-python = { path = "../vgi-python" }
 # ///
 """Stdio entry shim for the docgen VGI worker.
 
