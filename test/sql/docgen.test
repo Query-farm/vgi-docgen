@@ -1,0 +1,105 @@
+# name: test/sql/docgen.test
+# description: DOCX mail-merge scalar (docgen_render) + buffering merge (docgen_merge)
+# group: [vgi_docgen]
+
+require-env VGI_DOCGEN_WORKER
+
+statement ok
+LOAD vgi;
+
+statement ok
+ATTACH 'docgen' AS docgen (TYPE vgi, LOCATION '${VGI_DOCGEN_WORKER}');
+
+# ---- docgen_render (scalar): one DOCX per row from a template path -----------
+
+# A render returns a non-empty BLOB whose bytes start with the .docx (ZIP) magic
+# 'PK' (0x50 0x4B). LENGTH is plausible (a real .docx is several KB).
+query III
+SELECT
+  docgen.docgen_render('test/sql/data/invoice.docx',
+                       {customer: 'Ada Lovelace', total: '99.50', items: []}) IS NOT NULL,
+  OCTET_LENGTH(docgen.docgen_render('test/sql/data/invoice.docx',
+                              {customer: 'Ada Lovelace', total: '99.50', items: []})) > 1000,
+  docgen.docgen_render('test/sql/data/invoice.docx',
+                       {customer: 'Ada', total: '1', items: []})[1:2] = 'PK'::BLOB;
+----
+true	true	true
+
+# Nested data (a {% for %} loop over a LIST of STRUCTs) renders without error.
+query I
+SELECT OCTET_LENGTH(
+  docgen.docgen_render('test/sql/data/invoice.docx',
+    {customer: 'Ada', total: '99.50',
+     items: [{name: 'Engine', price: '1000'}, {name: 'Cards', price: '50'}]})
+) > 1000;
+----
+true
+
+# One row per input row: render across a table of customers, all non-empty.
+statement ok
+CREATE TEMP TABLE inv AS
+SELECT * FROM (VALUES ('Ada', '1.00'), ('Babbage', '2.00'), ('Hopper', '3.00')) AS t(customer, total);
+
+query I
+SELECT count(*) FROM inv
+WHERE docgen.docgen_render('test/sql/data/invoice.docx',
+                          {customer: customer, total: total, items: []}) IS NOT NULL;
+----
+3
+
+# NULL template -> NULL output (degrade, never crash).
+query I
+SELECT docgen.docgen_render(NULL::VARCHAR, {customer: 'X', total: '0', items: []}) IS NULL;
+----
+true
+
+# Missing template path -> NULL (degrade, never crash).
+query I
+SELECT docgen.docgen_render('test/sql/data/nope.docx',
+                            {customer: 'X', total: '0', items: []}) IS NULL;
+----
+true
+
+# ---- docgen_merge (buffering): many rows -> ONE merged document --------------
+
+# One merged BLOB, non-empty, larger than a single render (multiple rows merged).
+query III
+SELECT
+  count(*),
+  bool_and(doc IS NOT NULL),
+  bool_and(OCTET_LENGTH(doc) > 1000)
+FROM docgen.docgen_merge((SELECT customer, total FROM inv), template := 'test/sql/data/invoice.docx');
+----
+1	true	true
+
+# The merged doc is a valid .docx (PK/ZIP magic).
+query I
+SELECT doc[1:2] = 'PK'::BLOB
+FROM docgen.docgen_merge((SELECT customer, total FROM inv), template := 'test/sql/data/invoice.docx');
+----
+true
+
+# Empty input relation: the buffering operator sees no batches, so it emits no
+# rows (the merge produces no document). DuckDB returns an empty result set --
+# never a crash.
+query I
+SELECT count(*)
+FROM docgen.docgen_merge((SELECT customer, total FROM inv WHERE false),
+                         template := 'test/sql/data/invoice.docx');
+----
+0
+
+# Missing template on the merge path -> a clean DuckDB error (worker survives).
+statement error
+SELECT doc FROM docgen.docgen_merge((SELECT customer FROM inv), template := 'test/sql/data/nope.docx');
+----
+
+# Crucially: the worker is still alive and serving after the error above.
+query I
+SELECT docgen.docgen_render('test/sql/data/invoice.docx',
+                            {customer: 'Ada', total: '1', items: []}) IS NOT NULL;
+----
+true
+
+statement ok
+DETACH docgen;
