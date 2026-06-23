@@ -75,6 +75,7 @@ class TemplateRef:
     __slots__ = ("_data",)
 
     def __init__(self, data: bytes) -> None:
+        """Wrap already-validated ``.docx`` template bytes."""
         self._data = data
 
     @classmethod
@@ -139,6 +140,13 @@ def render_docx(ref: TemplateRef, context: dict[str, Any]) -> bytes:
     ``context`` keys become Jinja2 variables in the template
     (``{{ key }}``); nested dicts/lists drive ``{% for %}`` loops and tables.
 
+    Args:
+        ref: The resolved template source (path-backed or inline bytes).
+        context: Render context; keys become Jinja2 template variables.
+
+    Returns:
+        The rendered ``.docx`` document as bytes.
+
     Raises:
         DocgenError: on a malformed template or a Jinja render error (bad
             placeholder, undefined behaviour, etc.).
@@ -161,6 +169,14 @@ def merge_docx(ref: TemplateRef, contexts: list[dict[str, Any]]) -> bytes:
     ``contexts`` yields the template rendered against an empty context (a single
     empty document), so the output is always a valid ``.docx``.
 
+    Args:
+        ref: The resolved template source (path-backed or inline bytes).
+        contexts: One render context per output document; empty means a single
+            empty render.
+
+    Returns:
+        The single merged ``.docx`` document as bytes.
+
     Raises:
         DocgenError: if any individual render fails, or the merge cannot
             assemble the documents.
@@ -173,7 +189,8 @@ def merge_docx(ref: TemplateRef, contexts: list[dict[str, Any]]) -> bytes:
         master = Document(io.BytesIO(rendered[0]))
         composer = Composer(master)
         for doc_bytes in rendered[1:]:
-            master.add_page_break()
+            # python-docx ships py.typed but leaves add_page_break untyped.
+            master.add_page_break()  # type: ignore[no-untyped-call]
             composer.append(Document(io.BytesIO(doc_bytes)))
         out = io.BytesIO()
         composer.save(out)
@@ -204,6 +221,12 @@ def to_pdf(docx_bytes: bytes) -> bytes:
 
     This is the OPT-IN PDF path. LibreOffice is an optional *runtime* dependency,
     never installed by this package.
+
+    Args:
+        docx_bytes: The rendered ``.docx`` document to convert.
+
+    Returns:
+        The converted PDF document as bytes.
 
     Raises:
         DocgenError: if no LibreOffice is found, or the conversion fails / times

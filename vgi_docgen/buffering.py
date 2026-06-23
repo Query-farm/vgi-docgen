@@ -33,15 +33,18 @@ class DrainState(ArrowSerializableDataclass):
 def serialize_batch(batch: pa.RecordBatch) -> bytes:
     """Serialize one RecordBatch to a self-describing Arrow IPC stream."""
     sink = pa.BufferOutputStream()
-    with pa.ipc.new_stream(sink, batch.schema) as writer:
+    # pyarrow's IPC API is under-typed in its bundled stubs (new_stream is
+    # untyped, to_pybytes returns Any), so these calls trip --strict here.
+    with pa.ipc.new_stream(sink, batch.schema) as writer:  # type: ignore[no-untyped-call]
         writer.write_batch(batch)
-    return sink.getvalue().to_pybytes()
+    return sink.getvalue().to_pybytes()  # type: ignore[no-any-return]
 
 
 def deserialize_batches(value: bytes) -> list[pa.RecordBatch]:
     """Inverse of :func:`serialize_batch` for one stored blob."""
-    reader = pa.ipc.open_stream(pa.BufferReader(value))
-    return reader.read_all().to_batches()
+    # pyarrow's IPC stubs leave open_stream untyped and to_batches Any-typed.
+    reader = pa.ipc.open_stream(pa.BufferReader(value))  # type: ignore[no-untyped-call]
+    return reader.read_all().to_batches()  # type: ignore[no-any-return]
 
 
 def input_schema_of(params: Any) -> pa.Schema:
@@ -61,12 +64,14 @@ class SinkBuffer[TArgs, TState](TableBufferingFunction[TArgs, TState]):
 
     @classmethod
     def process(cls, batch: pa.RecordBatch, params: TableBufferingParams[TArgs]) -> bytes:
+        """Sink one input batch under the single bucket key; return the bucket id."""
         if batch.num_rows:
             params.storage.state_append(_DATA_KEY, b"", serialize_batch(batch))
         return params.execution_id
 
     @classmethod
     def combine(cls, state_ids: list[bytes], params: TableBufferingParams[TArgs]) -> list[bytes]:
+        """Collapse every sink bucket into the single finalize key (one bucket)."""
         return [params.execution_id]
 
     @classmethod

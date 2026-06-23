@@ -32,8 +32,9 @@ import pyarrow as pa
 from vgi.arguments import Arg, TableInput
 from vgi.invocation import BindResponse
 from vgi.metadata import FunctionExample
-from vgi.table_buffering_function import OutputCollector, TableBufferingParams
+from vgi.table_buffering_function import TableBufferingParams
 from vgi.table_function import BindParams
+from vgi_rpc import OutputCollector
 
 from . import core
 from .buffering import DrainState, SinkBuffer
@@ -54,6 +55,14 @@ _MERGE_SCHEMA = pa.schema(
 
 @dataclass(slots=True, frozen=True)
 class MergeArgs:
+    """Bound arguments for ``docgen_merge``.
+
+    Attributes:
+        data: The input relation; every column is exposed as a template variable.
+        template: Path to a ``.docx`` template, resolved under ``$VGI_DOCGEN_TEMPLATES``.
+        pdf: Convert the merged document to PDF via headless LibreOffice.
+    """
+
     data: Annotated[TableInput, Arg(0, doc="Relation; every column is a template variable.")]
     template: Annotated[
         str,
@@ -71,6 +80,8 @@ class DocgenMerge(SinkBuffer[MergeArgs, DrainState]):
     FunctionArguments: ClassVar[type] = MergeArgs
 
     class Meta:
+        """VGI metadata for the ``docgen_merge`` buffering table function."""
+
         name = "docgen_merge"
         description = (
             "Mail-merge: render a DOCX 'template' once per input row and "
@@ -91,12 +102,12 @@ class DocgenMerge(SinkBuffer[MergeArgs, DrainState]):
 
     @classmethod
     def on_bind(cls, params: BindParams[MergeArgs]) -> BindResponse:
+        """Declare the single-column BLOB output schema at bind time."""
         return BindResponse(output_schema=_MERGE_SCHEMA)
 
     @classmethod
-    def initial_finalize_state(
-        cls, finalize_state_id: bytes, params: TableBufferingParams[MergeArgs]
-    ) -> DrainState:
+    def initial_finalize_state(cls, finalize_state_id: bytes, params: TableBufferingParams[MergeArgs]) -> DrainState:
+        """Start each finalize stream undrained, so it emits exactly one document."""
         return DrainState()
 
     @classmethod
@@ -107,6 +118,7 @@ class DocgenMerge(SinkBuffer[MergeArgs, DrainState]):
         state: DrainState,
         out: OutputCollector,
     ) -> None:
+        """Render the template against every buffered row and emit one merged BLOB."""
         if state.done:
             out.finish()
             return

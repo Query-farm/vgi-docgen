@@ -64,7 +64,8 @@ def _render_one(ref: TemplateRef | None, ctx_value: Any, want_pdf: bool) -> byte
 def _struct_rows(data: Any) -> list[Any]:
     """Decode a struct data argument (a StructArray or AnyArrowValue) to dicts."""
     arr = getattr(data, "value", data)  # AnyArrowValue -> underlying array
-    return arr.to_pylist()
+    rows: list[Any] = arr.to_pylist()
+    return rows
 
 
 def _render_array(
@@ -92,6 +93,8 @@ class DocgenRenderPath(ScalarFunction):
     """``docgen_render(path, data)`` -- render a template file to a DOCX BLOB."""
 
     class Meta:
+        """VGI metadata for the path-template DOCX render overload."""
+
         name = "docgen_render"
         categories = _RENDER_CATEGORIES
         description = (
@@ -115,6 +118,7 @@ class DocgenRenderPath(ScalarFunction):
             Param(doc="STRUCT of row data; fields become template variables.", type_bound=pa.types.is_struct),
         ],
     ) -> Annotated[pa.BinaryArray, Returns(arrow_type=pa.binary())]:
+        """Render each row from its path template to a DOCX BLOB array."""
         refs = [TemplateRef.from_path(p) if p is None else _safe_path(p) for p in template.to_pylist()]
         return _render_array(refs, data, want_pdf=False)
 
@@ -123,6 +127,8 @@ class DocgenRenderPathPdf(ScalarFunction):
     """``docgen_render(path, data, pdf)`` -- render a file, optionally to PDF."""
 
     class Meta:
+        """VGI metadata for the path-template render overload with PDF flag."""
+
         name = "docgen_render"
         categories = _RENDER_CATEGORIES
         description = (
@@ -145,10 +151,9 @@ class DocgenRenderPathPdf(ScalarFunction):
             pa.Array,
             Param(doc="STRUCT of row data; fields become template variables.", type_bound=pa.types.is_struct),
         ],
-        pdf: Annotated[
-            bool, ConstParam("Convert to PDF via LibreOffice (default DOCX).", arrow_type=pa.bool_())
-        ],
+        pdf: Annotated[bool, ConstParam("Convert to PDF via LibreOffice (default DOCX).", arrow_type=pa.bool_())],
     ) -> Annotated[pa.BinaryArray, Returns(arrow_type=pa.binary())]:
+        """Render each row from its path template, optionally to PDF, as a BLOB array."""
         refs = [None if p is None else _safe_path(p) for p in template.to_pylist()]
         return _render_array(refs, data, want_pdf=bool(pdf))
 
@@ -157,6 +162,8 @@ class DocgenRenderBytes(ScalarFunction):
     """``docgen_render(blob, data)`` -- render inline template bytes to a DOCX."""
 
     class Meta:
+        """VGI metadata for the inline-bytes DOCX render overload."""
+
         name = "docgen_render"
         categories = _RENDER_CATEGORIES
         description = (
@@ -180,6 +187,7 @@ class DocgenRenderBytes(ScalarFunction):
             Param(doc="STRUCT of row data; fields become template variables.", type_bound=pa.types.is_struct),
         ],
     ) -> Annotated[pa.BinaryArray, Returns(arrow_type=pa.binary())]:
+        """Render each row from inline template bytes to a DOCX BLOB array."""
         refs = [None if b is None else _safe_bytes(b) for b in template.to_pylist()]
         return _render_array(refs, data, want_pdf=False)
 
@@ -188,6 +196,8 @@ class DocgenRenderBytesPdf(ScalarFunction):
     """``docgen_render(blob, data, pdf)`` -- render template bytes, optional PDF."""
 
     class Meta:
+        """VGI metadata for the inline-bytes render overload with PDF flag."""
+
         name = "docgen_render"
         categories = _RENDER_CATEGORIES
         description = (
@@ -210,10 +220,9 @@ class DocgenRenderBytesPdf(ScalarFunction):
             pa.Array,
             Param(doc="STRUCT of row data; fields become template variables.", type_bound=pa.types.is_struct),
         ],
-        pdf: Annotated[
-            bool, ConstParam("Convert to PDF via LibreOffice (default DOCX).", arrow_type=pa.bool_())
-        ],
+        pdf: Annotated[bool, ConstParam("Convert to PDF via LibreOffice (default DOCX).", arrow_type=pa.bool_())],
     ) -> Annotated[pa.BinaryArray, Returns(arrow_type=pa.binary())]:
+        """Render each row from inline template bytes, optionally to PDF, as a BLOB array."""
         refs = [None if b is None else _safe_bytes(b) for b in template.to_pylist()]
         return _render_array(refs, data, want_pdf=bool(pdf))
 
