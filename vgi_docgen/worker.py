@@ -59,14 +59,36 @@ _SCHEMA_DESCRIPTION_MD = (
     "(many rows -> one merged doc)."
 )
 
+_SCHEMA_KEYWORDS = (
+    "docgen, document generation, mail merge, docx, word, template, render, "
+    "merge, docgen_render, docgen_merge, jinja2, blob, pdf, invoice, letter"
+)
+
+# VGI506 representative example queries for the schema. Catalog-qualified and
+# self-contained: an unresolved template path renders to a clean NULL, and an
+# empty merge relation yields zero rows -- so each query runs without error.
+_SCHEMA_EXAMPLE_QUERIES = (
+    "SELECT docgen.docgen_render('invoice.docx', {customer: 'Ada', total: '99.50'}) AS doc;\n"
+    "SELECT docgen.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc;\n"
+    "SELECT docgen.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc;\n"
+    "SELECT doc FROM docgen.docgen_merge((SELECT 'Ada' AS customer WHERE false), "
+    "template := 'invoice.docx');"
+)
+
 _DOCGEN_CATALOG = Catalog(
     name="docgen",
     default_schema="main",
     comment="Mail-merge SQL data into DOCX templates -> filled documents (DOCX/PDF) as BLOBs.",
     source_url="https://github.com/Query-farm/vgi-docgen",
     tags={
-        "vgi.description_llm": _CATALOG_DESCRIPTION_LLM,
-        "vgi.description_md": _CATALOG_DESCRIPTION_MD,
+        "vgi.title": "Document Generation (DOCX Mail Merge)",
+        "vgi.keywords": (
+            "docgen, document generation, mail merge, docx, word, template, "
+            "jinja2, docxtpl, docxcompose, render, merge, invoice, letter, "
+            "statement, contract, blob, pdf, libreoffice"
+        ),
+        "vgi.doc_llm": _CATALOG_DESCRIPTION_LLM,
+        "vgi.doc_md": _CATALOG_DESCRIPTION_MD,
         "vgi.author": "Query.Farm",
         "vgi.copyright": "Copyright 2026 Query Farm LLC - https://query.farm",
         "vgi.license": "MIT",
@@ -78,8 +100,16 @@ _DOCGEN_CATALOG = Catalog(
             name="main",
             comment="Merge SQL data into DOCX templates -> filled documents (DOCX/PDF) as BLOBs",
             tags={
-                "vgi.description_llm": _SCHEMA_DESCRIPTION_LLM,
-                "vgi.description_md": _SCHEMA_DESCRIPTION_MD,
+                "vgi.title": "Document Generation — main",
+                "vgi.keywords": _SCHEMA_KEYWORDS,
+                # VGI123 classifying tags use BARE keys (NOT vgi.-namespaced).
+                "domain": "documents",
+                "category": "document-generation",
+                "topic": "docx-mail-merge",
+                "vgi.source_url": "https://github.com/Query-farm/vgi-docgen/blob/main/vgi_docgen/worker.py",
+                "vgi.example_queries": _SCHEMA_EXAMPLE_QUERIES,
+                "vgi.doc_llm": _SCHEMA_DESCRIPTION_LLM,
+                "vgi.doc_md": _SCHEMA_DESCRIPTION_MD,
             },
             functions=list(_FUNCTIONS),
         ),

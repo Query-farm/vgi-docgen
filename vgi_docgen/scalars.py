@@ -35,6 +35,7 @@ conversion also yields NULL -- never a worker crash.
 
 from __future__ import annotations
 
+import json
 from typing import Annotated, Any
 
 import pyarrow as pa
@@ -44,7 +45,12 @@ from vgi.scalar_function import ScalarFunction
 
 from . import core
 from .core import DocgenError, TemplateRef
+from .meta import object_tags
 from .schema_utils import to_context
+
+# Absolute path to the bundled sample DOCX template (shared with tables.py), so
+# examples render a real document regardless of the worker's working directory.
+from .tables import SAMPLE_TEMPLATE_PATH
 
 
 def _render_one(ref: TemplateRef | None, ctx_value: Any, want_pdf: bool) -> bytes | None:
@@ -88,6 +94,105 @@ def _render_array(
 
 _RENDER_CATEGORIES = ["docgen", "template", "blob"]
 
+# Shared per-object discovery/description tags for the docgen_render overloads.
+# All four overloads name themselves ``docgen_render`` and describe the SAME
+# logical function, so they carry identical title/description/keywords/source.
+_RENDER_TITLE = "Render Document from Template"
+
+_RENDER_DESCRIPTION_LLM = (
+    "Mail-merge **one DOCX (Microsoft Word) document per input row** from a "
+    "template, returning each rendered file as a `BLOB`.\n\n"
+    "## What it does\n\n"
+    "The first argument is the template, accepted as **either** a `VARCHAR` "
+    "path (resolved directly, then under `$VGI_DOCGEN_TEMPLATES`) **or** a "
+    "`BLOB` of raw `.docx` bytes. The second argument is an arbitrary `STRUCT` "
+    "of row data: every field becomes a Jinja2 variable in the template "
+    "(`{{ field }}`), and nested lists/structs drive `{% for %}` loops and "
+    "tables. An optional third boolean (`pdf`) converts the result to PDF via a "
+    "headless LibreOffice when one is on PATH.\n\n"
+    "## When to use it\n\n"
+    "Use this scalar to produce a separate filled document for each row -- one "
+    "invoice per customer, one letter per recipient, one statement per account. "
+    "When you instead want a *single* document concatenating every row, use the "
+    "`docgen_merge` table function.\n\n"
+    "## Inputs and output\n\n"
+    "- `template` -- `VARCHAR` path or `BLOB` `.docx` bytes.\n"
+    "- `data` -- `STRUCT`; fields become template variables.\n"
+    "- `pdf` (optional) -- `BOOLEAN`; `true` requests PDF output.\n"
+    "- Returns a `BLOB`: the rendered `.docx` (or PDF).\n\n"
+    "## Edge cases\n\n"
+    "Hostile or missing input degrades to `NULL`, never a crash: a `NULL` "
+    "template or `NULL` data, a non-DOCX blob, a missing template file, a "
+    "malformed template, a Jinja render error, and a requested-but-unavailable "
+    "PDF conversion all yield `NULL`."
+)
+
+_RENDER_DESCRIPTION_MD = (
+    "# Render Document from Template\n\n"
+    "Mail-merge **one DOCX document per row** from a template, returning each "
+    "rendered file as a `BLOB`.\n\n"
+    "## Usage\n\n"
+    "```sql\n"
+    "-- One rendered document per row, from a template file\n"
+    "SELECT docgen.docgen_render('invoice.docx', {customer: name, total: amt})\n"
+    "FROM invoices;\n\n"
+    "-- From inline template BLOB bytes\n"
+    "SELECT docgen.docgen_render(tpl_bytes, {customer: name}) FROM letters;\n\n"
+    "-- PDF output (requires headless LibreOffice on PATH)\n"
+    "SELECT docgen.docgen_render('invoice.docx', {total: amt}, true) FROM invoices;\n"
+    "```\n\n"
+    "## Notes\n\n"
+    "- The template is a `VARCHAR` path (resolved under "
+    "`$VGI_DOCGEN_TEMPLATES`) or inline `.docx` `BLOB` bytes.\n"
+    "- Every field of the `STRUCT` data argument becomes a Jinja2 variable "
+    "(`{{ field }}`); nested lists drive `{% for %}` loops.\n"
+    "- Missing/hostile input (NULL, non-DOCX blob, bad placeholder, missing "
+    "template, unavailable LibreOffice) degrades to `NULL` rather than crashing."
+)
+
+_RENDER_KEYWORDS = (
+    "docgen, render, mail merge, document generation, docx, word, template, "
+    "jinja2, docxtpl, fill template, invoice, letter, statement, contract, "
+    "blob, pdf, libreoffice, placeholder"
+)
+
+_RENDER_TAGS = object_tags(
+    _RENDER_TITLE,
+    _RENDER_DESCRIPTION_LLM,
+    _RENDER_DESCRIPTION_MD,
+    _RENDER_KEYWORDS,
+    "vgi_docgen/scalars.py",
+)
+
+# VGI509 guaranteed-runnable, catalog-qualified examples. Each is self-contained
+# and re-runnable against an attached ``docgen`` worker WITHOUT any external
+# table: the first renders a real document from the worker's BUNDLED sample
+# template (absolute path), and the rest exercise the documented NULL-vs-crash
+# discipline. ``expected_result`` is omitted deliberately.
+_RENDER_EXECUTABLE_EXAMPLES = json.dumps(
+    [
+        {
+            "description": (
+                "Render a document from the bundled sample template filled with a "
+                "STRUCT of fields and confirm a non-empty DOCX BLOB is produced."
+            ),
+            "sql": (
+                "SELECT octet_length(docgen.docgen_render("
+                f"'{SAMPLE_TEMPLATE_PATH}', "
+                "{customer: 'Ada Lovelace', total: '99.50'})) > 0 AS ok"
+            ),
+        },
+        {
+            "description": "A NULL template passes straight through to a NULL document (NULL-in, NULL-out).",
+            "sql": "SELECT docgen.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) AS doc",
+        },
+        {
+            "description": "Non-DOCX inline bytes degrade to a clean NULL rather than crashing the worker.",
+            "sql": "SELECT docgen.docgen_render('not a docx'::BLOB, {x: 1}) AS doc",
+        },
+    ]
+)
+
 
 class DocgenRenderPath(ScalarFunction):
     """``docgen_render(path, data)`` -- render a template file to a DOCX BLOB."""
@@ -102,10 +207,15 @@ class DocgenRenderPath(ScalarFunction):
             "resolved under $VGI_DOCGEN_TEMPLATES) filled with a STRUCT of row "
             "data; returns the rendered .docx as a BLOB, or NULL on failure."
         )
+        tags = {**_RENDER_TAGS, "vgi.executable_examples": _RENDER_EXECUTABLE_EXAMPLES}
         examples = [
             FunctionExample(
-                sql="SELECT docgen.docgen_render('invoice.docx', {customer: name, total: amt}) FROM inv",
-                description="Render an invoice per row from a template file",
+                sql=(
+                    "SELECT octet_length(docgen.docgen_render("
+                    f"'{SAMPLE_TEMPLATE_PATH}', "
+                    "{customer: 'Ada', total: '99.50'})) > 0 AS ok"
+                ),
+                description="Render an invoice from the bundled sample template",
             ),
         ]
 
@@ -136,10 +246,11 @@ class DocgenRenderPathPdf(ScalarFunction):
             "with a STRUCT; with pdf=true convert to PDF via headless "
             "LibreOffice (NULL if LibreOffice is unavailable), else return DOCX."
         )
+        tags = dict(_RENDER_TAGS)
         examples = [
             FunctionExample(
-                sql="SELECT docgen.docgen_render('invoice.docx', {total: amt}, true) FROM inv",
-                description="Render to PDF (requires LibreOffice on PATH)",
+                sql="SELECT docgen.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc",
+                description="Render to PDF (requires LibreOffice on PATH; NULL otherwise)",
             ),
         ]
 
@@ -171,10 +282,11 @@ class DocgenRenderBytes(ScalarFunction):
             "filled with a STRUCT of row data; returns the rendered .docx as a "
             "BLOB, or NULL on failure."
         )
+        tags = dict(_RENDER_TAGS)
         examples = [
             FunctionExample(
-                sql="SELECT docgen.docgen_render(tpl, {customer: name}) FROM letters, templates",
-                description="Render from a template held as bytes",
+                sql="SELECT docgen.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc",
+                description="Render from inline template BLOB bytes (non-DOCX bytes yield a clean NULL)",
             ),
         ]
 
@@ -205,10 +317,11 @@ class DocgenRenderBytesPdf(ScalarFunction):
             "filled with a STRUCT; with pdf=true convert to PDF via headless "
             "LibreOffice (NULL if unavailable), else return DOCX."
         )
+        tags = dict(_RENDER_TAGS)
         examples = [
             FunctionExample(
-                sql="SELECT docgen.docgen_render(tpl, {total: amt}, true) FROM inv, templates",
-                description="Render template bytes to PDF (requires LibreOffice)",
+                sql="SELECT docgen.docgen_render('not a docx'::BLOB, {total: '99.50'}, true) AS doc",
+                description="Render template bytes to PDF (requires LibreOffice; NULL otherwise)",
             ),
         ]
 

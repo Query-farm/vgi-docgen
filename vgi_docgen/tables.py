@@ -25,7 +25,9 @@ available to the template as a Jinja2 variable.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated, ClassVar
 
 import pyarrow as pa
@@ -39,7 +41,95 @@ from vgi_rpc import OutputCollector
 from . import core
 from .buffering import DrainState, SinkBuffer
 from .core import DocgenError, TemplateRef
+from .meta import object_tags
 from .schema_utils import field as sfield
+
+_MERGE_TITLE = "Merge Rows into One Document"
+
+_MERGE_DESCRIPTION_LLM = (
+    "Mail-merge a **whole input relation into a SINGLE merged DOCX (or PDF) "
+    "document**, returned as a one-row, one-column `BLOB`.\n\n"
+    "## What it does\n\n"
+    '`docgen_merge` is the "many rows -> one document" path. It consumes an '
+    "entire input relation (passed positionally as a `(SELECT ...)` subquery), "
+    "renders the named `template` once per row, and concatenates the results "
+    "into one `.docx`, with a page break between rows. Every column of the "
+    "relation is exposed to the template as a Jinja2 variable (`{{ column }}`). "
+    "Because it is a buffering (Sink+Source) function, it sinks every input "
+    "batch first and renders+merges once at finalize.\n\n"
+    "## When to use it\n\n"
+    "Use it to assemble one combined document from many rows -- a single PDF of "
+    "all monthly statements, one Word file containing every contract. When you "
+    "instead want a *separate* document per row, use the `docgen_render` scalar.\n\n"
+    "## Inputs and output\n\n"
+    "- `data` -- the input relation, a positional `(SELECT ...)` subquery; "
+    "every column becomes a template variable.\n"
+    "- `template` -- named `VARCHAR` arg: path to a `.docx` template, resolved "
+    "under `$VGI_DOCGEN_TEMPLATES`.\n"
+    "- `pdf` -- named `BOOLEAN` arg; `true` converts the merged document to PDF "
+    "via headless LibreOffice.\n"
+    "- Returns a single `doc` `BLOB` row.\n\n"
+    "## Edge cases\n\n"
+    "An **empty input relation yields zero output rows** (no document). A "
+    "missing/typo'd template name or an unavailable LibreOffice surfaces as a "
+    "clean DuckDB error (the merge path fails loudly rather than emitting a "
+    "silently empty file); the worker stays alive and serving afterwards."
+)
+
+_MERGE_DESCRIPTION_MD = (
+    "# Merge Rows into One Document\n\n"
+    "Mail-merge a whole relation into a **single merged DOCX/PDF** `BLOB` -- "
+    "one template render per input row, concatenated with a page break.\n\n"
+    "## Usage\n\n"
+    "```sql\n"
+    "-- Merge an invoice per row into ONE document\n"
+    "SELECT doc FROM docgen.docgen_merge(\n"
+    "    (SELECT customer, total FROM invoices),\n"
+    "    template := 'invoice.docx');\n\n"
+    "-- PDF output (requires headless LibreOffice on PATH)\n"
+    "SELECT doc FROM docgen.docgen_merge(\n"
+    "    (SELECT customer FROM letters),\n"
+    "    template := 'letter.docx', pdf := true);\n"
+    "```\n\n"
+    "## Notes\n\n"
+    "- The relation is the positional `(SELECT ...)` argument; every column is "
+    "a Jinja2 template variable.\n"
+    "- `template` and `pdf` are named args (`name := value`), supported by "
+    "table functions.\n"
+    "- An empty input relation produces zero output rows; a missing template "
+    "raises a clean DuckDB error."
+)
+
+_MERGE_KEYWORDS = (
+    "docgen, merge, mail merge, document generation, concatenate, combine, "
+    "docx, word, template, jinja2, docxtpl, docxcompose, single document, "
+    "batch, blob, pdf, libreoffice, statements, contracts"
+)
+
+# Absolute path to the bundled sample DOCX template, resolved at import time so
+# examples resolve regardless of the worker's working directory.
+SAMPLE_TEMPLATE_PATH = str(Path(__file__).resolve().parent / "data" / "sample_invoice.docx")
+
+# VGI509 guaranteed-runnable, catalog-qualified examples. They merge real rows
+# against the worker's BUNDLED sample template (resolved by absolute path), so
+# the example produces an actual non-empty merged document -- self-contained and
+# re-runnable with no external table or user-supplied file. ``expected_result``
+# is omitted deliberately.
+_MERGE_EXECUTABLE_EXAMPLES = json.dumps(
+    [
+        {
+            "description": (
+                "Merge two rows against the worker's bundled sample template into "
+                "ONE document and confirm a non-empty DOCX BLOB is produced."
+            ),
+            "sql": (
+                "SELECT octet_length(doc) > 0 AS ok FROM docgen.docgen_merge("
+                "(SELECT * FROM (VALUES ('Ada', '99.50'), ('Grace', '42.00')) "
+                f"AS t(customer, total)), template := '{SAMPLE_TEMPLATE_PATH}')"
+            ),
+        }
+    ]
+)
 
 _MERGE_SCHEMA = pa.schema(
     [
@@ -91,7 +181,15 @@ class DocgenMerge(SinkBuffer[MergeArgs, DrainState]):
         )
         categories = ["docgen", "template", "merge", "blob"]
         tags = {
-            "vgi.columns_md": (
+            **object_tags(
+                _MERGE_TITLE,
+                _MERGE_DESCRIPTION_LLM,
+                _MERGE_DESCRIPTION_MD,
+                _MERGE_KEYWORDS,
+                "vgi_docgen/tables.py",
+            ),
+            "vgi.executable_examples": _MERGE_EXECUTABLE_EXAMPLES,
+            "vgi.result_columns_md": (
                 "| column | type | description |\n"
                 "|---|---|---|\n"
                 "| `doc` | BLOB | The single merged document -- DOCX by default, or PDF when "
@@ -102,10 +200,11 @@ class DocgenMerge(SinkBuffer[MergeArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT doc FROM docgen.docgen_merge("
-                    "(SELECT customer, total FROM invoices), template := 'invoice.docx')"
+                    "SELECT octet_length(doc) > 0 AS ok FROM docgen.docgen_merge("
+                    "(SELECT * FROM (VALUES ('Ada', '99.50'), ('Grace', '42.00')) "
+                    f"AS t(customer, total)), template := '{SAMPLE_TEMPLATE_PATH}')"
                 ),
-                description="Merge an invoice per row into one document",
+                description="Merge two rows into one document using the bundled sample template",
             )
         ]
 
