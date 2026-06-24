@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "vgi-python[http]>=0.8.3",
+#     "vgi-python[http]>=0.8.4",
 #     "docxtpl>=0.16",
 #     "docxcompose>=1.4",
 #     "python-docx>=1.1",

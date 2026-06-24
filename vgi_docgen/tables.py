@@ -90,6 +90,15 @@ class DocgenMerge(SinkBuffer[MergeArgs, DrainState]):
             "LibreOffice. Every relation column is a template variable."
         )
         categories = ["docgen", "template", "merge", "blob"]
+        tags = {
+            "vgi.columns_md": (
+                "| column | type | description |\n"
+                "|---|---|---|\n"
+                "| `doc` | BLOB | The single merged document -- DOCX by default, or PDF when "
+                "`pdf := true` -- containing one template render per input row, separated by a "
+                "page break. |"
+            ),
+        }
         examples = [
             FunctionExample(
                 sql=(

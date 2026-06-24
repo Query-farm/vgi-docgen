@@ -23,13 +23,64 @@ from vgi_docgen.tables import TABLE_FUNCTIONS
 
 _FUNCTIONS: list[type] = [*SCALAR_FUNCTIONS, *TABLE_FUNCTIONS]
 
+_CATALOG_DESCRIPTION_LLM = (
+    "Mail-merge SQL query data into DOCX (Microsoft Word) templates to produce "
+    "filled documents -- invoices, contracts, statements, letters -- returned as "
+    "BLOBs for DuckDB. The inverse of text-extraction workers: it pushes row data "
+    "INTO templates rather than pulling text out. Use the scalar docgen_render for "
+    "one document per row (template path or inline bytes, plus a STRUCT of fields "
+    "that become Jinja2 variables), and the table function docgen_merge to "
+    "concatenate one render per input row into a single merged document. Output is "
+    "DOCX by default, or PDF (pdf:=true) via headless LibreOffice when available."
+)
+
+_CATALOG_DESCRIPTION_MD = (
+    "# docgen\n\n"
+    "Mail-merge SQL data into DOCX templates -> filled documents (DOCX/PDF) as "
+    "BLOBs, backed by [docxtpl](https://docxtpl.readthedocs.io/) (Jinja2 over "
+    "python-docx) and [docxcompose](https://pypi.org/project/docxcompose/).\n\n"
+    "- Scalar `docgen_render(template, data[, pdf])` -- one document per row.\n"
+    "- Table `docgen_merge(relation, template := ...[, pdf := true])` -- many "
+    "rows merged into ONE document.\n\n"
+    "Templates are a VARCHAR path (resolved under `$VGI_DOCGEN_TEMPLATES`) or "
+    "inline `.docx` BLOB bytes; every field/column becomes a template variable."
+)
+
+_SCHEMA_DESCRIPTION_LLM = (
+    "DOCX mail-merge / document-generation functions: render a Word template "
+    "filled with per-row STRUCT data into a document BLOB (docgen_render), or "
+    "merge one render per input row into a single combined document "
+    "(docgen_merge). DOCX by default, PDF on request."
+)
+
+_SCHEMA_DESCRIPTION_MD = (
+    "DOCX mail-merge / document-generation functions returning rendered "
+    "documents as BLOBs: `docgen_render` (one doc per row) and `docgen_merge` "
+    "(many rows -> one merged doc)."
+)
+
 _DOCGEN_CATALOG = Catalog(
     name="docgen",
     default_schema="main",
+    comment="Mail-merge SQL data into DOCX templates -> filled documents (DOCX/PDF) as BLOBs.",
+    source_url="https://github.com/Query-farm/vgi-docgen",
+    tags={
+        "vgi.description_llm": _CATALOG_DESCRIPTION_LLM,
+        "vgi.description_md": _CATALOG_DESCRIPTION_MD,
+        "vgi.author": "Query.Farm",
+        "vgi.copyright": "Copyright 2026 Query Farm LLC - https://query.farm",
+        "vgi.license": "MIT",
+        "vgi.support_contact": "https://github.com/Query-farm/vgi-docgen/issues",
+        "vgi.support_policy_url": "https://github.com/Query-farm/vgi-docgen/blob/main/README.md",
+    },
     schemas=[
         Schema(
             name="main",
             comment="Merge SQL data into DOCX templates -> filled documents (DOCX/PDF) as BLOBs",
+            tags={
+                "vgi.description_llm": _SCHEMA_DESCRIPTION_LLM,
+                "vgi.description_md": _SCHEMA_DESCRIPTION_MD,
+            },
             functions=list(_FUNCTIONS),
         ),
     ],
