@@ -25,10 +25,36 @@ extension from the Haybarn community channel:
    and everything else pass through untouched.
 4. **Run** — [`run-integration.sh`](run-integration.sh) stages the preprocessed
    tree (including the committed DOCX template fixtures under `test/sql/data/`,
-   which the tests read by relative path), points `VGI_DOCGEN_WORKER` at
-   `.venv/bin/vgi-docgen`, warms the extension cache once, then runs the suite in
-   a single `haybarn-unittest` invocation. Any failed assertion exits non-zero
-   and fails the job.
+   which the tests read by relative path), points `VGI_DOCGEN_WORKER` at the
+   worker LOCATION, warms the extension cache once, then runs the suite in a
+   single `haybarn-unittest` invocation, with a guard against silent skips (see
+   below). Any failed assertion exits non-zero and fails the job.
+
+## Three transports (one suite)
+
+The vgi extension picks its transport from the ATTACH `LOCATION` string. The
+SAME `test/sql/*.test` suite runs over all three, selected by the `TRANSPORT`
+env var (default `subprocess`); the CI `integration` job is a
+`transport: [subprocess, http, unix]` × `os: [ubuntu, macos]` matrix:
+
+- **subprocess** (stdio) — `VGI_DOCGEN_WORKER=.venv/bin/vgi-docgen`; the
+  extension spawns the worker per query and talks Arrow IPC over stdin/stdout.
+- **http** — `run-integration.sh` boots `vgi-docgen --http --port 0 --port-file
+  <f>` (cwd = the stage dir, so it resolves the staged `test/sql/data/*.docx`
+  fixtures), polls the port-file, and sets
+  `VGI_DOCGEN_WORKER=http://127.0.0.1:<port>` (bare scheme://host:port, no path).
+  The HTTP transport rides DuckDB's `httpfs`, so the script injects
+  `INSTALL httpfs FROM core; LOAD httpfs;` after each `LOAD vgi;` in the staged
+  tests (http leg only). Needs the `http` extra (waitress) — the job installs it
+  with `uv sync --extra http`.
+- **unix** — boots `vgi-docgen --unix <sock>` (cwd = stage dir), polls for the
+  socket, sets `VGI_DOCGEN_WORKER=unix://<sock>`.
+
+**Silent-skip guard.** The DuckDB/Haybarn sqllogictest runner SKIPS (exit 0!)
+any test whose error message contains "HTTP" / "Unable to connect", so a broken
+http setup would report "All tests were skipped" and go GREEN having tested
+nothing. The run step captures the report and fails the leg if it sees
+`All tests were skipped`.
 
 ## Run it locally
 

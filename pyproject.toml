@@ -38,6 +38,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# HTTP serving (`vgi-docgen --http`) needs waitress, pulled in by the
+# `vgi-python[http]` extra. Kept as a separate optional extra so the default
+# install (and the stdio/subprocess + unix transports) stays lean; the CI
+# integration job installs it with `uv sync --extra http` for the http leg.
+http = [
+    "vgi-python[http]>=0.8.3",
+]
 dev = [
     "pytest>=8",
     "ruff",
