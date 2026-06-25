@@ -18,6 +18,7 @@ import sys
 from vgi import Worker
 from vgi.catalog import Catalog, Schema
 
+from vgi_docgen.meta import keywords_json
 from vgi_docgen.scalars import SCALAR_FUNCTIONS
 from vgi_docgen.tables import TABLE_FUNCTIONS
 
@@ -82,7 +83,7 @@ _DOCGEN_CATALOG = Catalog(
     source_url="https://github.com/Query-farm/vgi-docgen",
     tags={
         "vgi.title": "Document Generation (DOCX Mail Merge)",
-        "vgi.keywords": (
+        "vgi.keywords": keywords_json(
             "docgen, document generation, mail merge, docx, word, template, "
             "jinja2, docxtpl, docxcompose, render, merge, invoice, letter, "
             "statement, contract, blob, pdf, libreoffice"
@@ -101,12 +102,12 @@ _DOCGEN_CATALOG = Catalog(
             comment="Merge SQL data into DOCX templates -> filled documents (DOCX/PDF) as BLOBs",
             tags={
                 "vgi.title": "Document Generation — main",
-                "vgi.keywords": _SCHEMA_KEYWORDS,
+                "vgi.keywords": keywords_json(_SCHEMA_KEYWORDS),
                 # VGI123 classifying tags use BARE keys (NOT vgi.-namespaced).
                 "domain": "documents",
                 "category": "document-generation",
                 "topic": "docx-mail-merge",
-                "vgi.source_url": "https://github.com/Query-farm/vgi-docgen/blob/main/vgi_docgen/worker.py",
+                # source_url is set only on the catalog object (VGI139).
                 "vgi.example_queries": _SCHEMA_EXAMPLE_QUERIES,
                 "vgi.doc_llm": _SCHEMA_DESCRIPTION_LLM,
                 "vgi.doc_md": _SCHEMA_DESCRIPTION_MD,
