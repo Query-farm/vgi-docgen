@@ -30,7 +30,7 @@ classifiers = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "vgi-python>=0.8.5",
+    "vgi-python>=0.9.0",
     "docxtpl>=0.16",
     "docxcompose>=1.4",
     "python-docx>=1.1",
@@ -43,7 +43,7 @@ dependencies = [
 # install (and the stdio/subprocess + unix transports) stays lean; the CI
 # integration job installs it with `uv sync --extra http` for the http leg.
 http = [
-    "vgi-python[http]>=0.8.5",
+    "vgi-python[http]>=0.9.0",
 ]
 dev = [
     "pytest>=8",
