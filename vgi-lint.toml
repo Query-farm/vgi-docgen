@@ -1,0 +1,10 @@
+# vgi-lint-check configuration for vgi-docgen.
+# Auto-discovered by `vgi-lint` (and the Query-farm/vgi-lint-check CI action)
+# from the repo root.
+
+[tool.vgi-lint-check.options]
+# `docgen_render` is deliberately polymorphic on its first argument: `template`
+# is accepted as a VARCHAR path OR an inline BLOB of raw .docx bytes (the
+# path-vs-bytes overload idiom). The two-type collision on `template` is by
+# design, so VGI315 (argument-type consistency) is silenced for that name only.
+type_consistency_ignore_names = ["template"]

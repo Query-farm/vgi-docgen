@@ -13,6 +13,7 @@ file as a BLOB. Assembles the scalar (one doc per row) and buffering (many rows
 
 from __future__ import annotations
 
+import json
 import sys
 
 from vgi import Worker
@@ -20,7 +21,7 @@ from vgi.catalog import Catalog, Schema
 
 from vgi_docgen.meta import keywords_json
 from vgi_docgen.scalars import SCALAR_FUNCTIONS
-from vgi_docgen.tables import TABLE_FUNCTIONS
+from vgi_docgen.tables import SAMPLE_TEMPLATE_PATH, TABLE_FUNCTIONS
 
 _FUNCTIONS: list[type] = [*SCALAR_FUNCTIONS, *TABLE_FUNCTIONS]
 
@@ -67,10 +68,14 @@ _CATALOG_DESCRIPTION_MD = (
     "The table function "
     "`docgen_merge(relation, template := ..., [pdf := true])` consumes an entire "
     "relation and concatenates one render per input row into a single combined document, "
-    "ideal for batch statement runs or multi-page contract packs. Typical SQL looks like "
-    "`SELECT docgen_render('invoice.docx', {customer: name, total: amount}) FROM orders;` "
-    "or `SELECT doc FROM docgen_merge((SELECT * FROM customers), template := "
-    "'letter.docx', pdf := true);`. Untrusted bytes are magic-checked before rendering, "
+    "ideal for batch statement runs or multi-page contract packs.\n\n"
+    "```sql\n"
+    "-- One filled document per row\n"
+    "SELECT docgen_render('invoice.docx', {customer: name, total: amount}) FROM orders;\n"
+    "-- Every row merged into a single combined document (optionally as PDF)\n"
+    "SELECT doc FROM docgen_merge((SELECT * FROM customers), template := 'letter.docx', pdf := true);\n"
+    "```\n\n"
+    "Untrusted bytes are magic-checked before rendering, "
     "and bad input degrades cleanly to NULL (scalar) or a visible error (merge)."
 )
 
@@ -82,14 +87,93 @@ _SCHEMA_DESCRIPTION_LLM = (
 )
 
 _SCHEMA_DESCRIPTION_MD = (
-    "DOCX mail-merge / document-generation functions returning rendered "
-    "documents as BLOBs: `docgen_render` (one doc per row) and `docgen_merge` "
-    "(many rows -> one merged doc)."
+    "## DOCX mail merge in SQL\n\n"
+    "Turn query results into finished Word documents. This schema mail-merges "
+    "row data into `.docx` templates and returns each rendered file as a `BLOB`, "
+    "so documents are produced at query time with no application code.\n\n"
+    "### Key concepts\n\n"
+    "- **Templates** are ordinary Word files with `{{ field }}` placeholders and "
+    "`{% for %}` loops, powered by Jinja2 over python-docx.\n"
+    "- **Data** comes straight from your columns: every field or column becomes a "
+    "template variable at render time.\n"
+    "- **Output** is a document `BLOB` — DOCX by default, or PDF when a headless "
+    "LibreOffice is available on the host.\n\n"
+    "### When to use it\n\n"
+    "Reach for this schema to automate document production — invoices, account "
+    "statements, contracts, and form letters — either one filled document per row "
+    "or a whole relation merged into a single combined document. Untrusted input "
+    "is magic-checked and degrades cleanly rather than crashing the worker.\n"
 )
 
 _SCHEMA_KEYWORDS = (
     "docgen, document generation, mail merge, docx, word, template, render, "
     "merge, docgen_render, docgen_merge, jinja2, blob, pdf, invoice, letter"
+)
+
+# VGI413 category registry for the schema. Each function tags itself with a
+# `vgi.category` naming one of these; categories drive the worker's navigation,
+# listing sections, and SEO descriptions.
+_SCHEMA_CATEGORIES = json.dumps(
+    [
+        {
+            "name": "render",
+            "description": "Per-row rendering: produce one filled document for each input row.",
+        },
+        {
+            "name": "merge",
+            "description": "Whole-relation merge: combine every input row into one merged document.",
+        },
+    ]
+)
+
+# VGI152 fixed analyst-task suite (`vgi.agent_test_tasks`) so `vgi-lint simulate`
+# can measure how well an agent actually drives this worker. Each reference_sql
+# is deterministic and self-contained: it collapses non-deterministic document
+# BYTES to a stable boolean/count, so grading is reproducible. `ignore_column_names`
+# lets the analyst pick any output column name; results are single-row so order is
+# irrelevant. The sample template path is given IN the prompt so the analyst can
+# reproduce the happy-path render without guessing a machine-specific path.
+_AGENT_TEST_TASKS = json.dumps(
+    [
+        {
+            "name": "render_from_sample_template",
+            "prompt": (
+                "The docgen worker ships a sample invoice template at the absolute path "
+                f"'{SAMPLE_TEMPLATE_PATH}'. Using it, render one Word document for customer "
+                "'Ada Lovelace' with total '99.50', and return a single boolean column "
+                "reporting whether a non-empty document BLOB was produced."
+            ),
+            "reference_sql": (
+                "SELECT octet_length(docgen.docgen_render("
+                f"'{SAMPLE_TEMPLATE_PATH}', "
+                "{customer: 'Ada Lovelace', total: '99.50'})) > 0 AS document_produced"
+            ),
+            "ignore_column_names": True,
+        },
+        {
+            "name": "null_template_is_null",
+            "prompt": (
+                "Demonstrate the docgen worker's NULL-safety: when the template argument to "
+                "docgen_render is a NULL VARCHAR, the rendered document must be NULL. Return a "
+                "single boolean column that is true when the output is NULL."
+            ),
+            "reference_sql": ("SELECT docgen.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) IS NULL AS is_null"),
+            "ignore_column_names": True,
+        },
+        {
+            "name": "empty_merge_yields_no_rows",
+            "prompt": (
+                "Using docgen_merge, show that merging an empty input relation (no rows) "
+                "produces no output document rows. Return the number of output rows as a "
+                "single column."
+            ),
+            "reference_sql": (
+                "SELECT count(*) AS n FROM docgen.docgen_merge("
+                "(SELECT 'Ada' AS customer WHERE false), template := 'invoice.docx')"
+            ),
+            "ignore_column_names": True,
+        },
+    ]
 )
 
 # VGI506 representative example queries for the schema. Catalog-qualified and
@@ -122,6 +206,7 @@ _DOCGEN_CATALOG = Catalog(
         "vgi.license": "MIT",
         "vgi.support_contact": "https://github.com/Query-farm/vgi-docgen/issues",
         "vgi.support_policy_url": "https://github.com/Query-farm/vgi-docgen/blob/main/README.md",
+        "vgi.agent_test_tasks": _AGENT_TEST_TASKS,
     },
     schemas=[
         Schema(
@@ -135,6 +220,7 @@ _DOCGEN_CATALOG = Catalog(
                 "category": "document-generation",
                 "topic": "docx-mail-merge",
                 # source_url is set only on the catalog object (VGI139).
+                "vgi.categories": _SCHEMA_CATEGORIES,
                 "vgi.example_queries": _SCHEMA_EXAMPLE_QUERIES,
                 "vgi.doc_llm": _SCHEMA_DESCRIPTION_LLM,
                 "vgi.doc_md": _SCHEMA_DESCRIPTION_MD,

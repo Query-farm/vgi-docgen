@@ -188,6 +188,8 @@ class DocgenMerge(SinkBuffer[MergeArgs, DrainState]):
                 _MERGE_KEYWORDS,
                 "vgi_docgen/tables.py",
             ),
+            # VGI413: name one of the schema's declared vgi.categories.
+            "vgi.category": "merge",
             "vgi.executable_examples": _MERGE_EXECUTABLE_EXAMPLES,
             "vgi.result_columns_md": (
                 "| column | type | description |\n"

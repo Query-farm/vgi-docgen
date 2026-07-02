@@ -156,13 +156,17 @@ _RENDER_KEYWORDS = (
     "blob, pdf, libreoffice, placeholder"
 )
 
-_RENDER_TAGS = object_tags(
-    _RENDER_TITLE,
-    _RENDER_DESCRIPTION_LLM,
-    _RENDER_DESCRIPTION_MD,
-    _RENDER_KEYWORDS,
-    "vgi_docgen/scalars.py",
-)
+_RENDER_TAGS = {
+    **object_tags(
+        _RENDER_TITLE,
+        _RENDER_DESCRIPTION_LLM,
+        _RENDER_DESCRIPTION_MD,
+        _RENDER_KEYWORDS,
+        "vgi_docgen/scalars.py",
+    ),
+    # VGI413: name one of the schema's declared vgi.categories.
+    "vgi.category": "render",
+}
 
 # VGI509 guaranteed-runnable, catalog-qualified examples. Each is self-contained
 # and re-runnable against an attached ``docgen`` worker WITHOUT any external
