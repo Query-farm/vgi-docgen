@@ -29,6 +29,8 @@ vgi_docgen/
   buffering.py       SinkBuffer (single-bucket sink/combine) + Arrow plumbing;
                      reassembles sunk rows into a list of render-context dicts
   tables.py          docgen_merge (TableBufferingFunction): many rows -> one doc
+  discovery.py       sample_templates browsable table: bundled templates + their
+                     path/fields (fields derived from the .docx at scan time)
   schema_utils.py    pa.Field comment helper + STRUCT-row -> render-context coercion
   worker.py          assembles the catalog; main() / main_http()
 tests/               pytest: test_core (pure), test_tables (in-proc merge), test_scalars (Client RPC)

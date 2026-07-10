@@ -6,12 +6,12 @@ a *whole* input relation (passed as a ``(SELECT ...)`` subquery, positional
 results into a SINGLE merged ``.docx`` (a page break between rows), returned as a
 one-row, one-column BLOB result set.
 
-    SELECT doc FROM docgen.docgen_merge(
+    SELECT doc FROM docgen.main.docgen_merge(
         (SELECT customer, total FROM invoices),
         template := 'invoice.docx');
 
     -- PDF output (requires headless LibreOffice on PATH)
-    SELECT doc FROM docgen.docgen_merge(
+    SELECT doc FROM docgen.main.docgen_merge(
         (SELECT customer FROM letters),
         template := 'letter.docx', pdf := true);
 
@@ -81,18 +81,13 @@ _MERGE_DESCRIPTION_MD = (
     "Mail-merge a whole relation into a **single merged DOCX/PDF** `BLOB` -- "
     "one template render per input row, concatenated with a page break.\n\n"
     "## Usage\n\n"
-    "```sql\n"
-    "-- Merge an invoice per row into ONE document\n"
-    "SELECT doc FROM docgen.docgen_merge(\n"
-    "    (SELECT customer, total FROM invoices),\n"
-    "    template := 'invoice.docx');\n\n"
-    "-- PDF output (requires headless LibreOffice on PATH)\n"
-    "SELECT doc FROM docgen.docgen_merge(\n"
-    "    (SELECT customer FROM letters),\n"
-    "    template := 'letter.docx', pdf := true);\n"
-    "```\n\n"
+    "Pass the input relation as the positional `(...)` subquery argument and the "
+    "template as the named `template := '...'` argument; add `pdf := true` to "
+    "convert the merged result via headless LibreOffice. The single `doc` column "
+    "carries the combined document. Ready-to-run queries are in this function's "
+    "example queries.\n\n"
     "## Notes\n\n"
-    "- The relation is the positional `(SELECT ...)` argument; every column is "
+    "- The relation is the positional `(...)` subquery argument; every column is "
     "a Jinja2 template variable.\n"
     "- `template` and `pdf` are named args (`name := value`), supported by "
     "table functions.\n"
@@ -123,7 +118,7 @@ _MERGE_EXECUTABLE_EXAMPLES = json.dumps(
                 "ONE document and confirm a non-empty DOCX BLOB is produced."
             ),
             "sql": (
-                "SELECT octet_length(doc) > 0 AS ok FROM docgen.docgen_merge("
+                "SELECT octet_length(doc) > 0 AS ok FROM docgen.main.docgen_merge("
                 "(SELECT * FROM (VALUES ('Ada', '99.50'), ('Grace', '42.00')) "
                 f"AS t(customer, total)), template := '{SAMPLE_TEMPLATE_PATH}')"
             ),
@@ -191,18 +186,25 @@ class DocgenMerge(SinkBuffer[MergeArgs, DrainState]):
             # VGI413: name one of the schema's declared vgi.categories.
             "vgi.category": "merge",
             "vgi.executable_examples": _MERGE_EXECUTABLE_EXAMPLES,
-            "vgi.result_columns_md": (
-                "| column | type | description |\n"
-                "|---|---|---|\n"
-                "| `doc` | BLOB | The single merged document -- DOCX by default, or PDF when "
-                "`pdf := true` -- containing one template render per input row, separated by a "
-                "page break. |"
+            # VGI307/VGI321/VGI414: structured static result schema (migrated from
+            # the retired free-form vgi.result_columns_md).
+            "vgi.result_columns_schema": json.dumps(
+                [
+                    {
+                        "name": "doc",
+                        "type": "BLOB",
+                        "description": (
+                            "The single merged document -- DOCX by default, or PDF when pdf:=true -- "
+                            "containing one template render per input row, separated by a page break."
+                        ),
+                    }
+                ]
             ),
         }
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT octet_length(doc) > 0 AS ok FROM docgen.docgen_merge("
+                    "SELECT octet_length(doc) > 0 AS ok FROM docgen.main.docgen_merge("
                     "(SELECT * FROM (VALUES ('Ada', '99.50'), ('Grace', '42.00')) "
                     f"AS t(customer, total)), template := '{SAMPLE_TEMPLATE_PATH}')"
                 ),

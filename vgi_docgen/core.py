@@ -45,6 +45,7 @@ __all__ = [
     "TemplateRef",
     "render_docx",
     "merge_docx",
+    "template_fields",
     "to_pdf",
     "libreoffice_available",
 ]
@@ -159,6 +160,26 @@ def render_docx(ref: TemplateRef, context: dict[str, Any]) -> bytes:
     buf = io.BytesIO()
     tpl.save(buf)
     return buf.getvalue()
+
+
+def template_fields(ref: TemplateRef) -> list[str]:
+    """Return the sorted Jinja2 placeholder variable names a template expects.
+
+    Derived directly from the template bytes (docxtpl's undeclared-variable
+    analysis), so a template registry built on this can never drift from the
+    document's real ``{{ field }}`` placeholders.
+
+    Args:
+        ref: The resolved template source (path-backed or inline bytes).
+
+    Returns:
+        The placeholder variable names, sorted, e.g. ``["customer", "total"]``.
+
+    Raises:
+        DocgenError: on a malformed template docxtpl cannot open.
+    """
+    tpl = _load_template(ref)
+    return sorted(tpl.get_undeclared_template_variables())
 
 
 def merge_docx(ref: TemplateRef, contexts: list[dict[str, Any]]) -> bytes:

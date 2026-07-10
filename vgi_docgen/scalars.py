@@ -3,10 +3,10 @@
 ``docgen_render`` is a true DuckDB **scalar**: one (template, data) pair per row
 in, one rendered document BLOB out -- so it slots into any projection:
 
-    SELECT docgen.docgen_render('invoice.docx', {customer: name, total: amt})
+    SELECT docgen.main.docgen_render('invoice.docx', {customer: name, total: amt})
     FROM invoices;
 
-    SELECT docgen.docgen_render(template_blob, struct_pack(name := name))
+    SELECT docgen.main.docgen_render(template_blob, struct_pack(name := name))
     FROM letters;
 
 Polymorphic template input + positional args
@@ -132,15 +132,11 @@ _RENDER_DESCRIPTION_MD = (
     "Mail-merge **one DOCX document per row** from a template, returning each "
     "rendered file as a `BLOB`.\n\n"
     "## Usage\n\n"
-    "```sql\n"
-    "-- One rendered document per row, from a template file\n"
-    "SELECT docgen.docgen_render('invoice.docx', {customer: name, total: amt})\n"
-    "FROM invoices;\n\n"
-    "-- From inline template BLOB bytes\n"
-    "SELECT docgen.docgen_render(tpl_bytes, {customer: name}) FROM letters;\n\n"
-    "-- PDF output (requires headless LibreOffice on PATH)\n"
-    "SELECT docgen.docgen_render('invoice.docx', {total: amt}, true) FROM invoices;\n"
-    "```\n\n"
+    "Call `docgen_render(template, data)` in any projection: the first argument "
+    "is a template file path or inline `.docx` bytes, and the second is a "
+    "`STRUCT` of the row's fields (`{customer: name, total: amt}`). Pass a third "
+    "`true` argument to request PDF output via headless LibreOffice. Ready-to-run "
+    "queries are in this function's example queries.\n\n"
     "## Notes\n\n"
     "- The template is a `VARCHAR` path (resolved under "
     "`$VGI_DOCGEN_TEMPLATES`) or inline `.docx` `BLOB` bytes.\n"
@@ -181,18 +177,18 @@ _RENDER_EXECUTABLE_EXAMPLES = json.dumps(
                 "STRUCT of fields and confirm a non-empty DOCX BLOB is produced."
             ),
             "sql": (
-                "SELECT octet_length(docgen.docgen_render("
+                "SELECT octet_length(docgen.main.docgen_render("
                 f"'{SAMPLE_TEMPLATE_PATH}', "
                 "{customer: 'Ada Lovelace', total: '99.50'})) > 0 AS ok"
             ),
         },
         {
             "description": "A NULL template passes straight through to a NULL document (NULL-in, NULL-out).",
-            "sql": "SELECT docgen.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) AS doc",
+            "sql": "SELECT docgen.main.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) AS doc",
         },
         {
             "description": "Non-DOCX inline bytes degrade to a clean NULL rather than crashing the worker.",
-            "sql": "SELECT docgen.docgen_render('not a docx'::BLOB, {x: 1}) AS doc",
+            "sql": "SELECT docgen.main.docgen_render('not a docx'::BLOB, {x: 1}) AS doc",
         },
     ]
 )
@@ -215,7 +211,7 @@ class DocgenRenderPath(ScalarFunction):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT octet_length(docgen.docgen_render("
+                    "SELECT octet_length(docgen.main.docgen_render("
                     f"'{SAMPLE_TEMPLATE_PATH}', "
                     "{customer: 'Ada', total: '99.50'})) > 0 AS ok"
                 ),
@@ -253,7 +249,7 @@ class DocgenRenderPathPdf(ScalarFunction):
         tags = dict(_RENDER_TAGS)
         examples = [
             FunctionExample(
-                sql="SELECT docgen.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc",
+                sql="SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc",
                 description="Render to PDF (requires LibreOffice on PATH; NULL otherwise)",
             ),
         ]
@@ -289,7 +285,7 @@ class DocgenRenderBytes(ScalarFunction):
         tags = dict(_RENDER_TAGS)
         examples = [
             FunctionExample(
-                sql="SELECT docgen.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc",
+                sql="SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc",
                 description="Render from inline template BLOB bytes (non-DOCX bytes yield a clean NULL)",
             ),
         ]
@@ -324,7 +320,7 @@ class DocgenRenderBytesPdf(ScalarFunction):
         tags = dict(_RENDER_TAGS)
         examples = [
             FunctionExample(
-                sql="SELECT docgen.docgen_render('not a docx'::BLOB, {total: '99.50'}, true) AS doc",
+                sql="SELECT docgen.main.docgen_render('not a docx'::BLOB, {total: '99.50'}, true) AS doc",
                 description="Render template bytes to PDF (requires LibreOffice; NULL otherwise)",
             ),
         ]

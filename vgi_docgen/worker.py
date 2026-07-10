@@ -19,6 +19,7 @@ import sys
 from vgi import Worker
 from vgi.catalog import Catalog, Schema
 
+from vgi_docgen.discovery import SAMPLE_TEMPLATES_TABLE
 from vgi_docgen.meta import keywords_json
 from vgi_docgen.scalars import SCALAR_FUNCTIONS
 from vgi_docgen.tables import SAMPLE_TEMPLATE_PATH, TABLE_FUNCTIONS
@@ -69,12 +70,10 @@ _CATALOG_DESCRIPTION_MD = (
     "`docgen_merge(relation, template := ..., [pdf := true])` consumes an entire "
     "relation and concatenates one render per input row into a single combined document, "
     "ideal for batch statement runs or multi-page contract packs.\n\n"
-    "```sql\n"
-    "-- One filled document per row\n"
-    "SELECT docgen_render('invoice.docx', {customer: name, total: amount}) FROM orders;\n"
-    "-- Every row merged into a single combined document (optionally as PDF)\n"
-    "SELECT doc FROM docgen_merge((SELECT * FROM customers), template := 'letter.docx', pdf := true);\n"
-    "```\n\n"
+    "The `sample_templates` discovery table lists every template the worker ships "
+    "along with its absolute path and the placeholder fields it expects, so an "
+    "agent can produce a real document without supplying a file of its own. See "
+    "the catalog's example queries for ready-to-run usage of each function.\n\n"
     "Untrusted bytes are magic-checked before rendering, "
     "and bad input degrades cleanly to NULL (scalar) or a visible error (merge)."
 )
@@ -144,7 +143,7 @@ _AGENT_TEST_TASKS = json.dumps(
                 "reporting whether a non-empty document BLOB was produced."
             ),
             "reference_sql": (
-                "SELECT octet_length(docgen.docgen_render("
+                "SELECT octet_length(docgen.main.docgen_render("
                 f"'{SAMPLE_TEMPLATE_PATH}', "
                 "{customer: 'Ada Lovelace', total: '99.50'})) > 0 AS document_produced"
             ),
@@ -157,7 +156,7 @@ _AGENT_TEST_TASKS = json.dumps(
                 "docgen_render is a NULL VARCHAR, the rendered document must be NULL. Return a "
                 "single boolean column that is true when the output is NULL."
             ),
-            "reference_sql": ("SELECT docgen.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) IS NULL AS is_null"),
+            "reference_sql": ("SELECT docgen.main.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) IS NULL AS is_null"),
             "ignore_column_names": True,
         },
         {
@@ -168,8 +167,31 @@ _AGENT_TEST_TASKS = json.dumps(
                 "single column."
             ),
             "reference_sql": (
-                "SELECT count(*) AS n FROM docgen.docgen_merge("
+                "SELECT count(*) AS n FROM docgen.main.docgen_merge("
                 "(SELECT 'Ada' AS customer WHERE false), template := 'invoice.docx')"
+            ),
+            "ignore_column_names": True,
+        },
+        {
+            "name": "discover_sample_templates",
+            "prompt": (
+                "The docgen worker ships one or more ready-to-use document templates. Without "
+                "being told the path, discover how many templates it bundles. Return the count "
+                "as a single column."
+            ),
+            "reference_sql": ("SELECT count(*) AS n FROM docgen.main.sample_templates"),
+            "ignore_column_names": True,
+        },
+        {
+            "name": "sample_template_fields",
+            "prompt": (
+                "Using only the docgen worker's own catalog, find the placeholder fields the "
+                "bundled 'sample_invoice' template expects. Return a single boolean column that "
+                "is true when its fields are exactly 'customer' and 'total'."
+            ),
+            "reference_sql": (
+                "SELECT fields = 'customer, total' AS ok "
+                "FROM docgen.main.sample_templates WHERE name = 'sample_invoice'"
             ),
             "ignore_column_names": True,
         },
@@ -180,10 +202,10 @@ _AGENT_TEST_TASKS = json.dumps(
 # self-contained: an unresolved template path renders to a clean NULL, and an
 # empty merge relation yields zero rows -- so each query runs without error.
 _SCHEMA_EXAMPLE_QUERIES = (
-    "SELECT docgen.docgen_render('invoice.docx', {customer: 'Ada', total: '99.50'}) AS doc;\n"
-    "SELECT docgen.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc;\n"
-    "SELECT docgen.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc;\n"
-    "SELECT doc FROM docgen.docgen_merge((SELECT 'Ada' AS customer WHERE false), "
+    "SELECT docgen.main.docgen_render('invoice.docx', {customer: 'Ada', total: '99.50'}) AS doc;\n"
+    "SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc;\n"
+    "SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc;\n"
+    "SELECT doc FROM docgen.main.docgen_merge((SELECT 'Ada' AS customer WHERE false), "
     "template := 'invoice.docx');"
 )
 
@@ -226,6 +248,7 @@ _DOCGEN_CATALOG = Catalog(
                 "vgi.doc_md": _SCHEMA_DESCRIPTION_MD,
             },
             functions=list(_FUNCTIONS),
+            tables=[SAMPLE_TEMPLATES_TABLE],
         ),
     ],
 )
