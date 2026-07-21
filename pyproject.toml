@@ -45,6 +45,11 @@ dependencies = [
 http = [
     "vgi-python[http]>=0.16.0",
 ]
+# Alias of `http` used by the Docker image (`pip install '.[serve]'`), matching
+# the shared Python worker container convention.
+serve = [
+    "vgi-python[http]>=0.16.0",
+]
 dev = [
     "pytest>=8",
     "ruff",
