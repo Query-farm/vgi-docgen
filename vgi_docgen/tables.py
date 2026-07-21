@@ -186,6 +186,23 @@ class DocgenMerge(SinkBuffer[MergeArgs, DrainState]):
             # VGI413: name one of the schema's declared vgi.categories.
             "vgi.category": "merge",
             "vgi.executable_examples": _MERGE_EXECUTABLE_EXAMPLES,
+            # VGI515: described example queries (descriptions the native
+            # duckdb_functions().examples carrier drops).
+            "vgi.example_queries": json.dumps(
+                [
+                    {
+                        "description": (
+                            "Merge two rows against the bundled sample template into ONE document "
+                            "and confirm a non-empty DOCX BLOB is produced."
+                        ),
+                        "sql": (
+                            "SELECT octet_length(doc) > 0 AS ok FROM docgen.main.docgen_merge("
+                            "(SELECT * FROM (VALUES ('Ada', '99.50'), ('Grace', '42.00')) "
+                            f"AS t(customer, total)), template := '{SAMPLE_TEMPLATE_PATH}')"
+                        ),
+                    }
+                ]
+            ),
             # VGI307/VGI321/VGI414: structured static result schema (migrated from
             # the retired free-form vgi.result_columns_md).
             "vgi.result_columns_schema": json.dumps(

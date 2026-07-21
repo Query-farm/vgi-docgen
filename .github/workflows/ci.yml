@@ -130,13 +130,16 @@ jobs:
 
       - name: Install the worker (from the lockfile)
         # Build the worker exactly as the integration job does so vgi-lint can
-        # launch `uv run docgen_worker.py` and introspect its catalog metadata.
+        # launch the installed `vgi-docgen` console script and introspect its
+        # catalog metadata. Use the venv console script rather than
+        # `uv run docgen_worker.py`: the PEP-723 script env caches a stale SDK
+        # and can emit an old catalog schema (false ATTACH/schema mismatch).
         run: uv sync --frozen --extra dev --python 3.13
 
       - name: vgi-lint
         uses: Query-farm/vgi-lint-check@v1
         with:
-          location: "uv run docgen_worker.py"
+          location: ".venv/bin/vgi-docgen"
           fail-on: info
 
   lint:

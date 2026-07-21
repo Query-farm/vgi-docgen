@@ -30,7 +30,7 @@ classifiers = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "vgi-python>=0.14.0",
+    "vgi-python>=0.16.0",
     "docxtpl>=0.16",
     "docxcompose>=1.4",
     "python-docx>=1.1",
@@ -43,7 +43,7 @@ dependencies = [
 # install (and the stdio/subprocess + unix transports) stays lean; the CI
 # integration job installs it with `uv sync --extra http` for the http leg.
 http = [
-    "vgi-python[http]>=0.14.0",
+    "vgi-python[http]>=0.16.0",
 ]
 dev = [
     "pytest>=8",
@@ -114,5 +114,6 @@ warn_return_any = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = ["docxtpl.*", "docxcompose.*", "docx.*"]
+# pyarrow 25 dropped its py.typed marker, so it imports as untyped.
+module = ["docxtpl.*", "docxcompose.*", "docx.*", "pyarrow.*"]
 ignore_missing_imports = true

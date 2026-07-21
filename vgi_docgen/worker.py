@@ -31,7 +31,7 @@ _CATALOG_DESCRIPTION_LLM = (
     "filled documents -- invoices, contracts, statements, letters -- returned as "
     "BLOBs for DuckDB. The inverse of text-extraction workers: it pushes row data "
     "INTO templates rather than pulling text out. Use the scalar docgen_render for "
-    "one document per row (template path or inline bytes, plus a STRUCT of fields "
+    "one document per row (template path or inline bytes, plus a `STRUCT` of fields "
     "that become Jinja2 variables), and the table function docgen_merge to "
     "concatenate one render per input row into a single merged document. Output is "
     "DOCX by default, or PDF (pdf:=true) via headless LibreOffice when available."
@@ -46,7 +46,7 @@ _CATALOG_DESCRIPTION_MD = (
     "vgi-tika and vgi-pdf: rather than pulling text and structure *out* of documents, "
     "it pushes your SQL row data *into* DOCX (Microsoft Word) templates to produce "
     "filled, ready-to-send documents. Each rendered document is returned to DuckDB as a "
-    "BLOB, so you can write it to a file, store it in a table, or stream it onward. It "
+    "`BLOB`, so you can write it to a file, store it in a table, or stream it onward. It "
     "is built for anyone who needs to automate document production at query time — "
     "billing and finance teams generating invoices and account statements, operations "
     "teams producing contracts and form letters, and developers building reporting or "
@@ -63,8 +63,8 @@ _CATALOG_DESCRIPTION_MD = (
     "[LibreOffice](https://www.libreoffice.org/) when it is available on the host (PDF is "
     "always optional and never a hard dependency).\n\n"
     "The catalog exposes two functions. The scalar `docgen_render(template, data[, pdf])` "
-    "renders one document per row: pass a template — either a VARCHAR path (resolved "
-    "directly, then under `$VGI_DOCGEN_TEMPLATES`) or inline `.docx` BLOB bytes — and a "
+    "renders one document per row: pass a template — either a `VARCHAR` path (resolved "
+    "directly, then under `$VGI_DOCGEN_TEMPLATES`) or inline `.docx` `BLOB` bytes — and a "
     "`STRUCT` of fields that become the Jinja2 variables, with an optional `pdf` flag. "
     "The table function "
     "`docgen_merge(relation, template := ..., [pdf := true])` consumes an entire "
@@ -72,15 +72,14 @@ _CATALOG_DESCRIPTION_MD = (
     "ideal for batch statement runs or multi-page contract packs.\n\n"
     "The `sample_templates` discovery table lists every template the worker ships "
     "along with its absolute path and the placeholder fields it expects, so an "
-    "agent can produce a real document without supplying a file of its own. See "
-    "the catalog's example queries for ready-to-run usage of each function.\n\n"
+    "agent can produce a real document without supplying a file of its own.\n\n"
     "Untrusted bytes are magic-checked before rendering, "
     "and bad input degrades cleanly to NULL (scalar) or a visible error (merge)."
 )
 
 _SCHEMA_DESCRIPTION_LLM = (
     "DOCX mail-merge / document-generation functions: render a Word template "
-    "filled with per-row STRUCT data into a document BLOB (docgen_render), or "
+    "filled with per-row `STRUCT` data into a document `BLOB` (docgen_render), or "
     "merge one render per input row into a single combined document "
     "(docgen_merge). DOCX by default, PDF on request."
 )
@@ -198,15 +197,33 @@ _AGENT_TEST_TASKS = json.dumps(
     ]
 )
 
-# VGI506 representative example queries for the schema. Catalog-qualified and
-# self-contained: an unresolved template path renders to a clean NULL, and an
-# empty merge relation yields zero rows -- so each query runs without error.
-_SCHEMA_EXAMPLE_QUERIES = (
-    "SELECT docgen.main.docgen_render('invoice.docx', {customer: 'Ada', total: '99.50'}) AS doc;\n"
-    "SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc;\n"
-    "SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc;\n"
-    "SELECT doc FROM docgen.main.docgen_merge((SELECT 'Ada' AS customer WHERE false), "
-    "template := 'invoice.docx');"
+# VGI506/VGI515 representative example queries for the schema, as a described
+# JSON list ([{"description","sql"}]) so every example carries a human-readable
+# description. Catalog-qualified and self-contained: an unresolved template path
+# renders to a clean NULL, and an empty merge relation yields zero rows -- so
+# each query runs without error.
+_SCHEMA_EXAMPLE_QUERIES = json.dumps(
+    [
+        {
+            "description": "Render one document per row, filling the template with a STRUCT of fields.",
+            "sql": "SELECT docgen.main.docgen_render('invoice.docx', {customer: 'Ada', total: '99.50'}) AS doc",
+        },
+        {
+            "description": "Non-DOCX inline bytes degrade to a clean NULL rather than crashing the worker.",
+            "sql": "SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc",
+        },
+        {
+            "description": "Request PDF output (pdf=true) via headless LibreOffice; NULL when LibreOffice is absent.",
+            "sql": "SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc",
+        },
+        {
+            "description": "Merge a whole relation into one document; an empty input relation yields zero rows.",
+            "sql": (
+                "SELECT doc FROM docgen.main.docgen_merge((SELECT 'Ada' AS customer WHERE false), "
+                "template := 'invoice.docx')"
+            ),
+        },
+    ]
 )
 
 _DOCGEN_CATALOG = Catalog(

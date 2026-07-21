@@ -33,17 +33,18 @@ class DrainState(ArrowSerializableDataclass):
 def serialize_batch(batch: pa.RecordBatch) -> bytes:
     """Serialize one RecordBatch to a self-describing Arrow IPC stream."""
     sink = pa.BufferOutputStream()
-    # pyarrow's IPC API is under-typed in its bundled stubs (new_stream is
-    # untyped, to_pybytes returns Any), so these calls trip --strict here.
-    with pa.ipc.new_stream(sink, batch.schema) as writer:  # type: ignore[no-untyped-call]
+    # pyarrow ships no py.typed marker, so its symbols are Any and to_pybytes
+    # returns Any, which trips --strict's warn_return_any.
+    with pa.ipc.new_stream(sink, batch.schema) as writer:
         writer.write_batch(batch)
     return sink.getvalue().to_pybytes()  # type: ignore[no-any-return]
 
 
 def deserialize_batches(value: bytes) -> list[pa.RecordBatch]:
     """Inverse of :func:`serialize_batch` for one stored blob."""
-    # pyarrow's IPC stubs leave open_stream untyped and to_batches Any-typed.
-    reader = pa.ipc.open_stream(pa.BufferReader(value))  # type: ignore[no-untyped-call]
+    # pyarrow ships no py.typed marker, so to_batches is Any-typed and trips
+    # --strict's warn_return_any.
+    reader = pa.ipc.open_stream(pa.BufferReader(value))
     return reader.read_all().to_batches()  # type: ignore[no-any-return]
 
 

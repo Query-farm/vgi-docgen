@@ -152,6 +152,35 @@ _RENDER_KEYWORDS = (
     "blob, pdf, libreoffice, placeholder"
 )
 
+# VGI515 described example queries ([{"description","sql"}]) shared across all
+# four docgen_render overloads (the linter aggregates examples by function name).
+# The native duckdb_functions().examples carrier drops descriptions, so this tag
+# is the description-bearing surface. Each SQL mirrors an overload's own example.
+_RENDER_EXAMPLE_QUERIES = json.dumps(
+    [
+        {
+            "description": "Render an invoice from the bundled sample template and confirm a non-empty DOCX BLOB.",
+            "sql": (
+                "SELECT octet_length(docgen.main.docgen_render("
+                f"'{SAMPLE_TEMPLATE_PATH}', "
+                "{customer: 'Ada', total: '99.50'})) > 0 AS ok"
+            ),
+        },
+        {
+            "description": "Request PDF output (pdf=true) via headless LibreOffice; NULL when LibreOffice is absent.",
+            "sql": "SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc",
+        },
+        {
+            "description": "Render from inline template BLOB bytes; non-DOCX bytes yield a clean NULL.",
+            "sql": "SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc",
+        },
+        {
+            "description": "Render inline template bytes to PDF (requires LibreOffice on PATH; NULL otherwise).",
+            "sql": "SELECT docgen.main.docgen_render('not a docx'::BLOB, {total: '99.50'}, true) AS doc",
+        },
+    ]
+)
+
 _RENDER_TAGS = {
     **object_tags(
         _RENDER_TITLE,
@@ -162,6 +191,8 @@ _RENDER_TAGS = {
     ),
     # VGI413: name one of the schema's declared vgi.categories.
     "vgi.category": "render",
+    # VGI515: described example queries (descriptions the native carrier drops).
+    "vgi.example_queries": _RENDER_EXAMPLE_QUERIES,
 }
 
 # VGI509 guaranteed-runnable, catalog-qualified examples. Each is self-contained
