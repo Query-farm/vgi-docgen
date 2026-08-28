@@ -30,7 +30,7 @@ classifiers = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "vgi-python>=0.16.0",
+    "vgi-python>=0.30.0",
     "docxtpl>=0.16",
     "docxcompose>=1.4",
     "python-docx>=1.1",
@@ -43,12 +43,12 @@ dependencies = [
 # install (and the stdio/subprocess + unix transports) stays lean; the CI
 # integration job installs it with `uv sync --extra http` for the http leg.
 http = [
-    "vgi-python[http]>=0.16.0",
+    "vgi-python[http]>=0.30.0",
 ]
 # Alias of `http` used by the Docker image (`pip install '.[serve]'`), matching
 # the shared Python worker container convention.
 serve = [
-    "vgi-python[http]>=0.16.0",
+    "vgi-python[http]>=0.30.0",
 ]
 dev = [
     "pytest>=8",
