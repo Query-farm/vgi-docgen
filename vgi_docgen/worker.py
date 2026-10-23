@@ -125,12 +125,12 @@ _SCHEMA_CATEGORIES = json.dumps(
 )
 
 # VGI152 fixed analyst-task suite (`vgi.agent_test_tasks`) so `vgi-lint simulate`
-# can measure how well an agent actually drives this worker. Each reference_sql
-# is deterministic and self-contained: it collapses non-deterministic document
-# BYTES to a stable boolean/count, so grading is reproducible. `ignore_column_names`
-# lets the analyst pick any output column name; results are single-row so order is
-# irrelevant. The sample template path is given IN the prompt so the analyst can
-# reproduce the happy-path render without guessing a machine-specific path.
+# can measure how well an agent actually drives this worker. Only task names and
+# prompts are published here (VGI416); the private graders (reference_sql,
+# ignore_column_names) live in vgi-agent-tests.yaml at the repo root. Each grader
+# collapses non-deterministic document BYTES to a stable boolean/count, so grading
+# is reproducible. The sample template path is given IN the prompt so the analyst
+# can reproduce the happy-path render without guessing a machine-specific path.
 _AGENT_TEST_TASKS = json.dumps(
     [
         {
@@ -141,12 +141,6 @@ _AGENT_TEST_TASKS = json.dumps(
                 "'Ada Lovelace' with total '99.50', and return a single boolean column "
                 "reporting whether a non-empty document BLOB was produced."
             ),
-            "reference_sql": (
-                "SELECT octet_length(docgen.main.docgen_render("
-                f"'{SAMPLE_TEMPLATE_PATH}', "
-                "{customer: 'Ada Lovelace', total: '99.50'})) > 0 AS document_produced"
-            ),
-            "ignore_column_names": True,
         },
         {
             "name": "null_template_is_null",
@@ -155,8 +149,6 @@ _AGENT_TEST_TASKS = json.dumps(
                 "docgen_render is a NULL VARCHAR, the rendered document must be NULL. Return a "
                 "single boolean column that is true when the output is NULL."
             ),
-            "reference_sql": ("SELECT docgen.main.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) IS NULL AS is_null"),
-            "ignore_column_names": True,
         },
         {
             "name": "empty_merge_yields_no_rows",
@@ -165,11 +157,6 @@ _AGENT_TEST_TASKS = json.dumps(
                 "produces no output document rows. Return the number of output rows as a "
                 "single column."
             ),
-            "reference_sql": (
-                "SELECT count(*) AS n FROM docgen.main.docgen_merge("
-                "(SELECT 'Ada' AS customer WHERE false), template := 'invoice.docx')"
-            ),
-            "ignore_column_names": True,
         },
         {
             "name": "discover_sample_templates",
@@ -178,8 +165,6 @@ _AGENT_TEST_TASKS = json.dumps(
                 "being told the path, discover how many templates it bundles. Return the count "
                 "as a single column."
             ),
-            "reference_sql": ("SELECT count(*) AS n FROM docgen.main.sample_templates"),
-            "ignore_column_names": True,
         },
         {
             "name": "sample_template_fields",
@@ -188,11 +173,6 @@ _AGENT_TEST_TASKS = json.dumps(
                 "bundled 'sample_invoice' template expects. Return a single boolean column that "
                 "is true when its fields are exactly 'customer' and 'total'."
             ),
-            "reference_sql": (
-                "SELECT fields = 'customer, total' AS ok "
-                "FROM docgen.main.sample_templates WHERE name = 'sample_invoice'"
-            ),
-            "ignore_column_names": True,
         },
     ]
 )
@@ -249,7 +229,7 @@ _DOCGEN_CATALOG = Catalog(
     },
     schemas=[
         Schema(
-            name="main",
+            path=["main"],
             comment="Merge SQL data into DOCX templates -> filled documents (DOCX/PDF) as BLOBs",
             tags={
                 "vgi.title": "Document Generation — main",

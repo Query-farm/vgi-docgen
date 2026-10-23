@@ -49,6 +49,7 @@ def _render(client: Client, template_col: pa.Array, data_rows: list) -> list:
     results = list(
         client.scalar_function(
             function_name="docgen_render",
+            schema_path=["main"],
             input=iter([batch]),
             arguments=Arguments(positional=[]),
         )

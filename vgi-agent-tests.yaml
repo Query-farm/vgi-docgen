@@ -1,0 +1,20 @@
+# Private graders for `vgi-lint simulate` (VGI416). The worker publishes only
+# task names and prompts in vgi.agent_test_tasks; these canonical solutions and
+# grading options stay in the repo and are merged by task name.
+tasks:
+  - name: render_from_sample_template
+    # The sample template path is machine-specific, so look it up from the catalog.
+    reference_sql: "SELECT octet_length(docgen.main.docgen_render((SELECT path FROM docgen.main.sample_templates WHERE name = 'sample_invoice'), {customer: 'Ada Lovelace', total: '99.50'})) > 0 AS document_produced"
+    ignore_column_names: true
+  - name: null_template_is_null
+    reference_sql: "SELECT docgen.main.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) IS NULL AS is_null"
+    ignore_column_names: true
+  - name: empty_merge_yields_no_rows
+    reference_sql: "SELECT count(*) AS n FROM docgen.main.docgen_merge((SELECT 'Ada' AS customer WHERE false), template := 'invoice.docx')"
+    ignore_column_names: true
+  - name: discover_sample_templates
+    reference_sql: "SELECT count(*) AS n FROM docgen.main.sample_templates"
+    ignore_column_names: true
+  - name: sample_template_fields
+    reference_sql: "SELECT fields = 'customer, total' AS ok FROM docgen.main.sample_templates WHERE name = 'sample_invoice'"
+    ignore_column_names: true
