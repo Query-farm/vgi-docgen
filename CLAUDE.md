@@ -143,8 +143,8 @@ uv run --no-sync ruff check . && uv run --no-sync mypy vgi_docgen/
 ```
 
 `make test-sql` sets `VGI_DOCGEN_WORKER="uv run --python 3.13 docgen_worker.py"`,
-puts `~/.local/bin` on PATH, and runs `haybarn-unittest --test-dir . "test/sql/*"`.
-Install the runner once with `uv tool install haybarn-unittest`. Everything is
+puts `~/.local/bin` on PATH, and runs `haybarn-unittest --keep-home --test-dir . "test/sql/*"`.
+Install the runner once with `uv tool install --prerelease allow 'haybarn-unittest>=2.0.0rc11,<2.1'` (haybarn 2.0 is required for the worker's VGI protocol vgi.v3 / 3.1). Everything is
 offline/hermetic (no LibreOffice required).
 
 ## Licensing

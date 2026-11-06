@@ -8,7 +8,7 @@ statement ok
 LOAD vgi;
 
 statement ok
-ATTACH 'docgen' AS docgen (TYPE vgi, LOCATION '${VGI_DOCGEN_WORKER}');
+ATTACH 'docgen' AS docgen (TYPE vgi, LOCATION '{VGI_DOCGEN_WORKER}');
 
 # ---- docgen_render (scalar): one DOCX per row from a template path -----------
 

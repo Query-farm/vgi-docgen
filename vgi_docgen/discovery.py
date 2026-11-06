@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 import pyarrow as pa
-from vgi.catalog import Table
+from vgi.catalog import ConstraintInfo, Table, constraint_record
 from vgi.metadata import FunctionExample
 from vgi.table_function import (
     BindParams,
@@ -211,6 +211,26 @@ class SampleTemplatesFunction(TableFunctionGenerator[_NoArgs]):
         out.finish()
 
 
+def _trusted(table: str, constraint_id: str, kind: str, columns: list[list[str]]) -> ConstraintInfo:
+    """Build an ENFORCED/ALL_ROWS constraint record for a table in the ``main`` schema.
+
+    DuckDB only reads trusted (ENFORCED + ALL_ROWS) records under vgi.v3; declare one
+    only when every row the table can return satisfies it.
+
+    Args:
+        table: Table name the record belongs to.
+        constraint_id: Identifier unique within the table.
+        kind: Constraint kind (``PRIMARY_KEY``, ``NOT_NULL``, ...).
+        columns: Column paths the constraint covers, e.g. ``[["name"]]``.
+
+    Returns:
+        The canonical constraint record.
+    """
+    return constraint_record(
+        ["main"], table, constraint_id, kind, columns, enforcement="ENFORCED", validation="ALL_ROWS"
+    )
+
+
 # The browsable discovery table (VGI146): a real table backed by the generator
 # above, so an agent can `SELECT * FROM docgen.main.sample_templates` and read
 # each bundled template's path + placeholder fields before rendering.
@@ -218,8 +238,13 @@ SAMPLE_TEMPLATES_TABLE = Table(
     name="sample_templates",
     function=SampleTemplatesFunction,
     comment="The DOCX templates the worker ships, with their path and template variables (discovery table).",
-    primary_key=(("name",),),
-    not_null=("name", "path", "field_count", "fields", "description"),
+    constraints=(
+        _trusted("sample_templates", "pk", "PRIMARY_KEY", [["name"]]),
+        *(
+            _trusted("sample_templates", f"{col}_not_null", "NOT_NULL", [[col]])
+            for col in ("path", "field_count", "fields", "description")
+        ),
+    ),
     column_comments={
         "name": "Logical template name.",
         "path": "Absolute filesystem path to the .docx template (pass as the `template` argument).",
