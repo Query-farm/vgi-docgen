@@ -1,6 +1,6 @@
 [project]
 name = "vgi-docgen"
-version = "0.1.0"
+version = "0.2.0"
 description = "Mail-merge SQL data into DOCX templates -> filled documents (DOCX/PDF) as BLOBs for DuckDB via VGI"
 readme = "README.md"
 keywords = [
