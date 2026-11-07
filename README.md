@@ -21,7 +21,7 @@ the merge. PDF output is **optional** and uses headless LibreOffice if present.
 
 ```sql
 INSTALL vgi FROM community; LOAD vgi;
-ATTACH 'docgen' (TYPE vgi, LOCATION 'uv run docgen_worker.py');
+ATTACH 'docgen' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-docgen@v0.2.0 vgi-docgen');
 
 -- One rendered DOCX per row (scalar): template + a STRUCT of row data -> BLOB
 SELECT docgen.docgen_render('invoice.docx', {customer: name, total: amount})
@@ -39,6 +39,39 @@ SELECT doc FROM docgen.docgen_merge(
     (SELECT customer, total FROM invoices),
     template := 'invoice.docx');
 ```
+
+## Quick start
+
+The worker isn't on PyPI; [uv](https://docs.astral.sh/uv/) runs it straight from a tagged release on GitHub. `uvx` builds an isolated environment on the first ATTACH and reuses it afterwards:
+
+```sql
+INSTALL vgi FROM community;
+LOAD vgi;
+
+ATTACH 'docgen' AS docgen (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-docgen@v0.2.0 vgi-docgen');
+
+-- Render one document per row, filling the template with a STRUCT of fields.
+SELECT docgen.main.docgen_render('invoice.docx', {customer: 'Ada', total: '99.50'}) AS doc;
+
+-- Non-DOCX inline bytes degrade to a clean NULL rather than crashing the worker.
+SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc;
+```
+
+Change `@v0.2.0` to move to a newer release.
+
+### Other ways to run it
+
+- **Docker** (the image bundles the worker and its dependencies):
+
+  ```sql
+  ATTACH 'docgen' AS docgen (TYPE vgi, LOCATION 'docker://ghcr.io/query-farm/vgi-docgen:0.2.0');
+  ```
+
+- **From a local checkout** (`git clone https://github.com/Query-farm/vgi-docgen`), point `LOCATION` at `uv run --project /path/to/vgi-docgen vgi-docgen`.
+
+### Build from source
+
+To build the worker yourself, see [Development](#development).
 
 ## Functions
 
