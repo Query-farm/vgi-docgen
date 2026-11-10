@@ -212,7 +212,10 @@ _DOCGEN_CATALOG = Catalog(
     comment="Mail-merge SQL data into DOCX templates -> filled documents (DOCX/PDF) as BLOBs.",
     source_url="https://github.com/Query-farm/vgi-docgen",
     tags={
-        "vgi.title": "Document Generation (DOCX Mail Merge)",
+        "vgi.title": "DOCX Mail Merge",
+        "vgi.subtitle": (
+            "Fill Word templates from query rows to produce invoices, letters and other DOCX or PDF documents."
+        ),
         "vgi.keywords": keywords_json(
             "docgen, document generation, mail merge, docx, word, template, "
             "jinja2, docxtpl, docxcompose, render, merge, invoice, letter, "
@@ -232,7 +235,7 @@ _DOCGEN_CATALOG = Catalog(
             path=["main"],
             comment="Merge SQL data into DOCX templates -> filled documents (DOCX/PDF) as BLOBs",
             tags={
-                "vgi.title": "Document Generation — main",
+                "vgi.title": "Document Templating",
                 "vgi.keywords": keywords_json(_SCHEMA_KEYWORDS),
                 # VGI123 classifying tags use BARE keys (NOT vgi.-namespaced).
                 "domain": "documents",
