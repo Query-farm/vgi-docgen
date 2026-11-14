@@ -1,0 +1,251 @@
+{
+  "query": "SELECT * FROM duckdb_functions() WHERE database_name='docgen'",
+  "columns": [
+    "database_name",
+    "database_oid",
+    "schema_name",
+    "function_name",
+    "alias_of",
+    "function_type",
+    "description",
+    "comment",
+    "tags",
+    "return_type",
+    "parameters",
+    "parameter_types",
+    "varargs",
+    "macro_definition",
+    "has_side_effects",
+    "internal",
+    "extension_name",
+    "function_oid",
+    "examples",
+    "stability",
+    "categories"
+  ],
+  "rows": [
+    [
+      "docgen",
+      "22592",
+      "main",
+      "docgen_merge",
+      null,
+      "table",
+      "Mail-merge: render a DOCX 'template' once per input row and concatenate into ONE merged document (page break between rows), returned as a single BLOB. With pdf:=true, convert via headless LibreOffice. Every relation column is a template variable.",
+      null,
+      {
+        "vgi.category": "merge",
+        "vgi.doc_llm": "Mail-merge a **whole input relation into a SINGLE merged DOCX (or PDF) document**, returned as a one-row, one-column `BLOB`.\n\n## What it does\n\n`docgen_merge` is the \"many rows -> one document\" path. It consumes an entire input relation (passed positionally as a `(SELECT ...)` subquery), renders the named `template` once per row, and concatenates the results into one `.docx`, with a page break between rows. Every column of the relation is exposed to the template as a Jinja2 variable (`{{ column }}`). Because it is a buffering (Sink+Source) function, it sinks every input batch first and renders+merges once at finalize.\n\n## When to use it\n\nUse it to assemble one combined document from many rows -- a single PDF of all monthly statements, one Word file containing every contract. When you instead want a *separate* document per row, use the `docgen_render` scalar.\n\n## Inputs and output\n\n- `data` -- the input relation, a positional `(SELECT ...)` subquery; every column becomes a template variable.\n- `template` -- named `VARCHAR` arg: path to a `.docx` template, resolved under `$VGI_DOCGEN_TEMPLATES`.\n- `pdf` -- named `BOOLEAN` arg; `true` converts the merged document to PDF via headless LibreOffice.\n- Returns a single `doc` `BLOB` row.\n\n## Edge cases\n\nAn **empty input relation yields zero output rows** (no document). A missing/typo'd template name or an unavailable LibreOffice surfaces as a clean DuckDB error (the merge path fails loudly rather than emitting a silently empty file); the worker stays alive and serving afterwards.",
+        "vgi.doc_md": "# Merge Rows into One Document\n\nMail-merge a whole relation into a **single merged DOCX/PDF** `BLOB` -- one template render per input row, concatenated with a page break.\n\n## Usage\n\nPass the input relation as the positional `(...)` subquery argument and the template as the named `template := '...'` argument; add `pdf := true` to convert the merged result via headless LibreOffice. The single `doc` column carries the combined document. Ready-to-run queries are in this function's example queries.\n\n## Notes\n\n- The relation is the positional `(...)` subquery argument; every column is a Jinja2 template variable.\n- `template` and `pdf` are named args (`name := value`), supported by table functions.\n- An empty input relation produces zero output rows; a missing template raises a clean DuckDB error.",
+        "vgi.example_queries": "[{\"description\": \"Merge two rows against the bundled sample template into ONE document and confirm a non-empty DOCX BLOB is produced.\", \"sql\": \"SELECT octet_length(doc) > 0 AS ok FROM docgen.main.docgen_merge((SELECT * FROM (VALUES ('Ada', '99.50'), ('Grace', '42.00')) AS t(customer, total)), template := '/Users/rusty/Library/Caches/uv/archive-v0/VTefknWerBqtCMUc7eSSx/lib/python3.14/site-packages/vgi_docgen/data/sample_invoice.docx')\"}]",
+        "vgi.executable_examples": "[{\"description\": \"Merge two rows against the worker's bundled sample template into ONE document and confirm a non-empty DOCX BLOB is produced.\", \"sql\": \"SELECT octet_length(doc) > 0 AS ok FROM docgen.main.docgen_merge((SELECT * FROM (VALUES ('Ada', '99.50'), ('Grace', '42.00')) AS t(customer, total)), template := '/Users/rusty/Library/Caches/uv/archive-v0/VTefknWerBqtCMUc7eSSx/lib/python3.14/site-packages/vgi_docgen/data/sample_invoice.docx')\"}]",
+        "vgi.keywords": "[\"docgen\", \"merge\", \"mail merge\", \"document generation\", \"concatenate\", \"combine\", \"docx\", \"word\", \"template\", \"jinja2\", \"docxtpl\", \"docxcompose\", \"single document\", \"batch\", \"blob\", \"pdf\", \"libreoffice\", \"statements\", \"contracts\"]",
+        "vgi.result_columns_schema": "[{\"name\": \"doc\", \"type\": \"BLOB\", \"description\": \"The single merged document -- DOCX by default, or PDF when pdf:=true -- containing one template render per input row, separated by a page break.\"}]",
+        "vgi.title": "Merge Rows into One Document"
+      },
+      null,
+      [
+        "data",
+        "template",
+        "pdf"
+      ],
+      [
+        "TABLE",
+        "VARCHAR",
+        "BOOLEAN"
+      ],
+      null,
+      null,
+      null,
+      true,
+      null,
+      22597,
+      [
+        "SELECT octet_length(doc) > 0 AS ok FROM docgen.main.docgen_merge((SELECT * FROM (VALUES ('Ada', '99.50'), ('Grace', '42.00')) AS t(customer, total)), template := '/Users/rusty/Library/Caches/uv/archive-v0/VTefknWerBqtCMUc7eSSx/lib/python3.14/site-packages/vgi_docgen/data/sample_invoice.docx')"
+      ],
+      null,
+      [
+        "docgen",
+        "template",
+        "merge",
+        "blob"
+      ]
+    ],
+    [
+      "docgen",
+      "22592",
+      "main",
+      "docgen_render",
+      null,
+      "scalar",
+      "Render one DOCX document per row from a template (VARCHAR path, resolved under $VGI_DOCGEN_TEMPLATES) filled with a STRUCT of row data; returns the rendered .docx as a BLOB, or NULL on failure.",
+      null,
+      {
+        "vgi.category": "render",
+        "vgi.doc_llm": "Mail-merge **one DOCX (Microsoft Word) document per input row** from a template, returning each rendered file as a `BLOB`.\n\n## What it does\n\nThe first argument is the template, accepted as **either** a `VARCHAR` path (resolved directly, then under `$VGI_DOCGEN_TEMPLATES`) **or** a `BLOB` of raw `.docx` bytes. The second argument is an arbitrary `STRUCT` of row data: every field becomes a Jinja2 variable in the template (`{{ field }}`), and nested lists/structs drive `{% for %}` loops and tables. An optional third boolean (`pdf`) converts the result to PDF via a headless LibreOffice when one is on PATH.\n\n## When to use it\n\nUse this scalar to produce a separate filled document for each row -- one invoice per customer, one letter per recipient, one statement per account. When you instead want a *single* document concatenating every row, use the `docgen_merge` table function.\n\n## Inputs and output\n\n- `template` -- `VARCHAR` path or `BLOB` `.docx` bytes.\n- `data` -- `STRUCT`; fields become template variables.\n- `pdf` (optional) -- `BOOLEAN`; `true` requests PDF output.\n- Returns a `BLOB`: the rendered `.docx` (or PDF).\n\n## Edge cases\n\nHostile or missing input degrades to `NULL`, never a crash: a `NULL` template or `NULL` data, a non-DOCX blob, a missing template file, a malformed template, a Jinja render error, and a requested-but-unavailable PDF conversion all yield `NULL`.",
+        "vgi.doc_md": "# Render Document from Template\n\nMail-merge **one DOCX document per row** from a template, returning each rendered file as a `BLOB`.\n\n## Usage\n\nCall `docgen_render(template, data)` in any projection: the first argument is a template file path or inline `.docx` bytes, and the second is a `STRUCT` of the row's fields (`{customer: name, total: amt}`). Pass a third `true` argument to request PDF output via headless LibreOffice. Ready-to-run queries are in this function's example queries.\n\n## Notes\n\n- The template is a `VARCHAR` path (resolved under `$VGI_DOCGEN_TEMPLATES`) or inline `.docx` `BLOB` bytes.\n- Every field of the `STRUCT` data argument becomes a Jinja2 variable (`{{ field }}`); nested lists drive `{% for %}` loops.\n- Missing/hostile input (NULL, non-DOCX blob, bad placeholder, missing template, unavailable LibreOffice) degrades to `NULL` rather than crashing.",
+        "vgi.example_queries": "[{\"description\": \"Render an invoice from the bundled sample template and confirm a non-empty DOCX BLOB.\", \"sql\": \"SELECT octet_length(docgen.main.docgen_render('/Users/rusty/Library/Caches/uv/archive-v0/VTefknWerBqtCMUc7eSSx/lib/python3.14/site-packages/vgi_docgen/data/sample_invoice.docx', {customer: 'Ada', total: '99.50'})) > 0 AS ok\"}, {\"description\": \"Request PDF output (pdf=true) via headless LibreOffice; NULL when LibreOffice is absent.\", \"sql\": \"SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc\"}, {\"description\": \"Render from inline template BLOB bytes; non-DOCX bytes yield a clean NULL.\", \"sql\": \"SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc\"}, {\"description\": \"Render inline template bytes to PDF (requires LibreOffice on PATH; NULL otherwise).\", \"sql\": \"SELECT docgen.main.docgen_render('not a docx'::BLOB, {total: '99.50'}, true) AS doc\"}]",
+        "vgi.executable_examples": "[{\"description\": \"Render a document from the bundled sample template filled with a STRUCT of fields and confirm a non-empty DOCX BLOB is produced.\", \"sql\": \"SELECT octet_length(docgen.main.docgen_render('/Users/rusty/Library/Caches/uv/archive-v0/VTefknWerBqtCMUc7eSSx/lib/python3.14/site-packages/vgi_docgen/data/sample_invoice.docx', {customer: 'Ada Lovelace', total: '99.50'})) > 0 AS ok\"}, {\"description\": \"A NULL template passes straight through to a NULL document (NULL-in, NULL-out).\", \"sql\": \"SELECT docgen.main.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) AS doc\"}, {\"description\": \"Non-DOCX inline bytes degrade to a clean NULL rather than crashing the worker.\", \"sql\": \"SELECT docgen.main.docgen_render('not a docx'::BLOB, {x: 1}) AS doc\"}]",
+        "vgi.keywords": "[\"docgen\", \"render\", \"mail merge\", \"document generation\", \"docx\", \"word\", \"template\", \"jinja2\", \"docxtpl\", \"fill template\", \"invoice\", \"letter\", \"statement\", \"contract\", \"blob\", \"pdf\", \"libreoffice\", \"placeholder\"]",
+        "vgi.title": "Render Document from Template"
+      },
+      "BLOB",
+      [
+        "template",
+        "data"
+      ],
+      [
+        "VARCHAR",
+        "ANY"
+      ],
+      null,
+      null,
+      false,
+      true,
+      null,
+      22596,
+      [
+        "SELECT octet_length(docgen.main.docgen_render('/Users/rusty/Library/Caches/uv/archive-v0/VTefknWerBqtCMUc7eSSx/lib/python3.14/site-packages/vgi_docgen/data/sample_invoice.docx', {customer: 'Ada', total: '99.50'})) > 0 AS ok"
+      ],
+      "CONSISTENT",
+      [
+        "docgen",
+        "template",
+        "blob"
+      ]
+    ],
+    [
+      "docgen",
+      "22592",
+      "main",
+      "docgen_render",
+      null,
+      "scalar",
+      "Render one document per row from a template (VARCHAR path) filled with a STRUCT; with pdf=true convert to PDF via headless LibreOffice (NULL if LibreOffice is unavailable), else return DOCX.",
+      null,
+      {
+        "vgi.category": "render",
+        "vgi.doc_llm": "Mail-merge **one DOCX (Microsoft Word) document per input row** from a template, returning each rendered file as a `BLOB`.\n\n## What it does\n\nThe first argument is the template, accepted as **either** a `VARCHAR` path (resolved directly, then under `$VGI_DOCGEN_TEMPLATES`) **or** a `BLOB` of raw `.docx` bytes. The second argument is an arbitrary `STRUCT` of row data: every field becomes a Jinja2 variable in the template (`{{ field }}`), and nested lists/structs drive `{% for %}` loops and tables. An optional third boolean (`pdf`) converts the result to PDF via a headless LibreOffice when one is on PATH.\n\n## When to use it\n\nUse this scalar to produce a separate filled document for each row -- one invoice per customer, one letter per recipient, one statement per account. When you instead want a *single* document concatenating every row, use the `docgen_merge` table function.\n\n## Inputs and output\n\n- `template` -- `VARCHAR` path or `BLOB` `.docx` bytes.\n- `data` -- `STRUCT`; fields become template variables.\n- `pdf` (optional) -- `BOOLEAN`; `true` requests PDF output.\n- Returns a `BLOB`: the rendered `.docx` (or PDF).\n\n## Edge cases\n\nHostile or missing input degrades to `NULL`, never a crash: a `NULL` template or `NULL` data, a non-DOCX blob, a missing template file, a malformed template, a Jinja render error, and a requested-but-unavailable PDF conversion all yield `NULL`.",
+        "vgi.doc_md": "# Render Document from Template\n\nMail-merge **one DOCX document per row** from a template, returning each rendered file as a `BLOB`.\n\n## Usage\n\nCall `docgen_render(template, data)` in any projection: the first argument is a template file path or inline `.docx` bytes, and the second is a `STRUCT` of the row's fields (`{customer: name, total: amt}`). Pass a third `true` argument to request PDF output via headless LibreOffice. Ready-to-run queries are in this function's example queries.\n\n## Notes\n\n- The template is a `VARCHAR` path (resolved under `$VGI_DOCGEN_TEMPLATES`) or inline `.docx` `BLOB` bytes.\n- Every field of the `STRUCT` data argument becomes a Jinja2 variable (`{{ field }}`); nested lists drive `{% for %}` loops.\n- Missing/hostile input (NULL, non-DOCX blob, bad placeholder, missing template, unavailable LibreOffice) degrades to `NULL` rather than crashing.",
+        "vgi.example_queries": "[{\"description\": \"Render an invoice from the bundled sample template and confirm a non-empty DOCX BLOB.\", \"sql\": \"SELECT octet_length(docgen.main.docgen_render('/Users/rusty/Library/Caches/uv/archive-v0/VTefknWerBqtCMUc7eSSx/lib/python3.14/site-packages/vgi_docgen/data/sample_invoice.docx', {customer: 'Ada', total: '99.50'})) > 0 AS ok\"}, {\"description\": \"Request PDF output (pdf=true) via headless LibreOffice; NULL when LibreOffice is absent.\", \"sql\": \"SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc\"}, {\"description\": \"Render from inline template BLOB bytes; non-DOCX bytes yield a clean NULL.\", \"sql\": \"SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc\"}, {\"description\": \"Render inline template bytes to PDF (requires LibreOffice on PATH; NULL otherwise).\", \"sql\": \"SELECT docgen.main.docgen_render('not a docx'::BLOB, {total: '99.50'}, true) AS doc\"}]",
+        "vgi.executable_examples": "[{\"description\": \"Render a document from the bundled sample template filled with a STRUCT of fields and confirm a non-empty DOCX BLOB is produced.\", \"sql\": \"SELECT octet_length(docgen.main.docgen_render('/Users/rusty/Library/Caches/uv/archive-v0/VTefknWerBqtCMUc7eSSx/lib/python3.14/site-packages/vgi_docgen/data/sample_invoice.docx', {customer: 'Ada Lovelace', total: '99.50'})) > 0 AS ok\"}, {\"description\": \"A NULL template passes straight through to a NULL document (NULL-in, NULL-out).\", \"sql\": \"SELECT docgen.main.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) AS doc\"}, {\"description\": \"Non-DOCX inline bytes degrade to a clean NULL rather than crashing the worker.\", \"sql\": \"SELECT docgen.main.docgen_render('not a docx'::BLOB, {x: 1}) AS doc\"}]",
+        "vgi.keywords": "[\"docgen\", \"render\", \"mail merge\", \"document generation\", \"docx\", \"word\", \"template\", \"jinja2\", \"docxtpl\", \"fill template\", \"invoice\", \"letter\", \"statement\", \"contract\", \"blob\", \"pdf\", \"libreoffice\", \"placeholder\"]",
+        "vgi.title": "Render Document from Template"
+      },
+      "BLOB",
+      [
+        "template",
+        "data",
+        "pdf"
+      ],
+      [
+        "VARCHAR",
+        "ANY",
+        "BOOLEAN"
+      ],
+      null,
+      null,
+      false,
+      true,
+      null,
+      22596,
+      [
+        "SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc"
+      ],
+      "CONSISTENT",
+      [
+        "docgen",
+        "template",
+        "blob"
+      ]
+    ],
+    [
+      "docgen",
+      "22592",
+      "main",
+      "docgen_render",
+      null,
+      "scalar",
+      "Render one DOCX document per row from inline template bytes (BLOB) filled with a STRUCT of row data; returns the rendered .docx as a BLOB, or NULL on failure.",
+      null,
+      {
+        "vgi.category": "render",
+        "vgi.doc_llm": "Mail-merge **one DOCX (Microsoft Word) document per input row** from a template, returning each rendered file as a `BLOB`.\n\n## What it does\n\nThe first argument is the template, accepted as **either** a `VARCHAR` path (resolved directly, then under `$VGI_DOCGEN_TEMPLATES`) **or** a `BLOB` of raw `.docx` bytes. The second argument is an arbitrary `STRUCT` of row data: every field becomes a Jinja2 variable in the template (`{{ field }}`), and nested lists/structs drive `{% for %}` loops and tables. An optional third boolean (`pdf`) converts the result to PDF via a headless LibreOffice when one is on PATH.\n\n## When to use it\n\nUse this scalar to produce a separate filled document for each row -- one invoice per customer, one letter per recipient, one statement per account. When you instead want a *single* document concatenating every row, use the `docgen_merge` table function.\n\n## Inputs and output\n\n- `template` -- `VARCHAR` path or `BLOB` `.docx` bytes.\n- `data` -- `STRUCT`; fields become template variables.\n- `pdf` (optional) -- `BOOLEAN`; `true` requests PDF output.\n- Returns a `BLOB`: the rendered `.docx` (or PDF).\n\n## Edge cases\n\nHostile or missing input degrades to `NULL`, never a crash: a `NULL` template or `NULL` data, a non-DOCX blob, a missing template file, a malformed template, a Jinja render error, and a requested-but-unavailable PDF conversion all yield `NULL`.",
+        "vgi.doc_md": "# Render Document from Template\n\nMail-merge **one DOCX document per row** from a template, returning each rendered file as a `BLOB`.\n\n## Usage\n\nCall `docgen_render(template, data)` in any projection: the first argument is a template file path or inline `.docx` bytes, and the second is a `STRUCT` of the row's fields (`{customer: name, total: amt}`). Pass a third `true` argument to request PDF output via headless LibreOffice. Ready-to-run queries are in this function's example queries.\n\n## Notes\n\n- The template is a `VARCHAR` path (resolved under `$VGI_DOCGEN_TEMPLATES`) or inline `.docx` `BLOB` bytes.\n- Every field of the `STRUCT` data argument becomes a Jinja2 variable (`{{ field }}`); nested lists drive `{% for %}` loops.\n- Missing/hostile input (NULL, non-DOCX blob, bad placeholder, missing template, unavailable LibreOffice) degrades to `NULL` rather than crashing.",
+        "vgi.example_queries": "[{\"description\": \"Render an invoice from the bundled sample template and confirm a non-empty DOCX BLOB.\", \"sql\": \"SELECT octet_length(docgen.main.docgen_render('/Users/rusty/Library/Caches/uv/archive-v0/VTefknWerBqtCMUc7eSSx/lib/python3.14/site-packages/vgi_docgen/data/sample_invoice.docx', {customer: 'Ada', total: '99.50'})) > 0 AS ok\"}, {\"description\": \"Request PDF output (pdf=true) via headless LibreOffice; NULL when LibreOffice is absent.\", \"sql\": \"SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc\"}, {\"description\": \"Render from inline template BLOB bytes; non-DOCX bytes yield a clean NULL.\", \"sql\": \"SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc\"}, {\"description\": \"Render inline template bytes to PDF (requires LibreOffice on PATH; NULL otherwise).\", \"sql\": \"SELECT docgen.main.docgen_render('not a docx'::BLOB, {total: '99.50'}, true) AS doc\"}]",
+        "vgi.executable_examples": "[{\"description\": \"Render a document from the bundled sample template filled with a STRUCT of fields and confirm a non-empty DOCX BLOB is produced.\", \"sql\": \"SELECT octet_length(docgen.main.docgen_render('/Users/rusty/Library/Caches/uv/archive-v0/VTefknWerBqtCMUc7eSSx/lib/python3.14/site-packages/vgi_docgen/data/sample_invoice.docx', {customer: 'Ada Lovelace', total: '99.50'})) > 0 AS ok\"}, {\"description\": \"A NULL template passes straight through to a NULL document (NULL-in, NULL-out).\", \"sql\": \"SELECT docgen.main.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) AS doc\"}, {\"description\": \"Non-DOCX inline bytes degrade to a clean NULL rather than crashing the worker.\", \"sql\": \"SELECT docgen.main.docgen_render('not a docx'::BLOB, {x: 1}) AS doc\"}]",
+        "vgi.keywords": "[\"docgen\", \"render\", \"mail merge\", \"document generation\", \"docx\", \"word\", \"template\", \"jinja2\", \"docxtpl\", \"fill template\", \"invoice\", \"letter\", \"statement\", \"contract\", \"blob\", \"pdf\", \"libreoffice\", \"placeholder\"]",
+        "vgi.title": "Render Document from Template"
+      },
+      "BLOB",
+      [
+        "template",
+        "data"
+      ],
+      [
+        "BLOB",
+        "ANY"
+      ],
+      null,
+      null,
+      false,
+      true,
+      null,
+      22596,
+      [
+        "SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc"
+      ],
+      "CONSISTENT",
+      [
+        "docgen",
+        "template",
+        "blob"
+      ]
+    ],
+    [
+      "docgen",
+      "22592",
+      "main",
+      "docgen_render",
+      null,
+      "scalar",
+      "Render one document per row from inline template bytes (BLOB) filled with a STRUCT; with pdf=true convert to PDF via headless LibreOffice (NULL if unavailable), else return DOCX.",
+      null,
+      {
+        "vgi.category": "render",
+        "vgi.doc_llm": "Mail-merge **one DOCX (Microsoft Word) document per input row** from a template, returning each rendered file as a `BLOB`.\n\n## What it does\n\nThe first argument is the template, accepted as **either** a `VARCHAR` path (resolved directly, then under `$VGI_DOCGEN_TEMPLATES`) **or** a `BLOB` of raw `.docx` bytes. The second argument is an arbitrary `STRUCT` of row data: every field becomes a Jinja2 variable in the template (`{{ field }}`), and nested lists/structs drive `{% for %}` loops and tables. An optional third boolean (`pdf`) converts the result to PDF via a headless LibreOffice when one is on PATH.\n\n## When to use it\n\nUse this scalar to produce a separate filled document for each row -- one invoice per customer, one letter per recipient, one statement per account. When you instead want a *single* document concatenating every row, use the `docgen_merge` table function.\n\n## Inputs and output\n\n- `template` -- `VARCHAR` path or `BLOB` `.docx` bytes.\n- `data` -- `STRUCT`; fields become template variables.\n- `pdf` (optional) -- `BOOLEAN`; `true` requests PDF output.\n- Returns a `BLOB`: the rendered `.docx` (or PDF).\n\n## Edge cases\n\nHostile or missing input degrades to `NULL`, never a crash: a `NULL` template or `NULL` data, a non-DOCX blob, a missing template file, a malformed template, a Jinja render error, and a requested-but-unavailable PDF conversion all yield `NULL`.",
+        "vgi.doc_md": "# Render Document from Template\n\nMail-merge **one DOCX document per row** from a template, returning each rendered file as a `BLOB`.\n\n## Usage\n\nCall `docgen_render(template, data)` in any projection: the first argument is a template file path or inline `.docx` bytes, and the second is a `STRUCT` of the row's fields (`{customer: name, total: amt}`). Pass a third `true` argument to request PDF output via headless LibreOffice. Ready-to-run queries are in this function's example queries.\n\n## Notes\n\n- The template is a `VARCHAR` path (resolved under `$VGI_DOCGEN_TEMPLATES`) or inline `.docx` `BLOB` bytes.\n- Every field of the `STRUCT` data argument becomes a Jinja2 variable (`{{ field }}`); nested lists drive `{% for %}` loops.\n- Missing/hostile input (NULL, non-DOCX blob, bad placeholder, missing template, unavailable LibreOffice) degrades to `NULL` rather than crashing.",
+        "vgi.example_queries": "[{\"description\": \"Render an invoice from the bundled sample template and confirm a non-empty DOCX BLOB.\", \"sql\": \"SELECT octet_length(docgen.main.docgen_render('/Users/rusty/Library/Caches/uv/archive-v0/VTefknWerBqtCMUc7eSSx/lib/python3.14/site-packages/vgi_docgen/data/sample_invoice.docx', {customer: 'Ada', total: '99.50'})) > 0 AS ok\"}, {\"description\": \"Request PDF output (pdf=true) via headless LibreOffice; NULL when LibreOffice is absent.\", \"sql\": \"SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc\"}, {\"description\": \"Render from inline template BLOB bytes; non-DOCX bytes yield a clean NULL.\", \"sql\": \"SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc\"}, {\"description\": \"Render inline template bytes to PDF (requires LibreOffice on PATH; NULL otherwise).\", \"sql\": \"SELECT docgen.main.docgen_render('not a docx'::BLOB, {total: '99.50'}, true) AS doc\"}]",
+        "vgi.executable_examples": "[{\"description\": \"Render a document from the bundled sample template filled with a STRUCT of fields and confirm a non-empty DOCX BLOB is produced.\", \"sql\": \"SELECT octet_length(docgen.main.docgen_render('/Users/rusty/Library/Caches/uv/archive-v0/VTefknWerBqtCMUc7eSSx/lib/python3.14/site-packages/vgi_docgen/data/sample_invoice.docx', {customer: 'Ada Lovelace', total: '99.50'})) > 0 AS ok\"}, {\"description\": \"A NULL template passes straight through to a NULL document (NULL-in, NULL-out).\", \"sql\": \"SELECT docgen.main.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) AS doc\"}, {\"description\": \"Non-DOCX inline bytes degrade to a clean NULL rather than crashing the worker.\", \"sql\": \"SELECT docgen.main.docgen_render('not a docx'::BLOB, {x: 1}) AS doc\"}]",
+        "vgi.keywords": "[\"docgen\", \"render\", \"mail merge\", \"document generation\", \"docx\", \"word\", \"template\", \"jinja2\", \"docxtpl\", \"fill template\", \"invoice\", \"letter\", \"statement\", \"contract\", \"blob\", \"pdf\", \"libreoffice\", \"placeholder\"]",
+        "vgi.title": "Render Document from Template"
+      },
+      "BLOB",
+      [
+        "template",
+        "data",
+        "pdf"
+      ],
+      [
+        "BLOB",
+        "ANY",
+        "BOOLEAN"
+      ],
+      null,
+      null,
+      false,
+      true,
+      null,
+      22596,
+      [
+        "SELECT docgen.main.docgen_render('not a docx'::BLOB, {total: '99.50'}, true) AS doc"
+      ],
+      "CONSISTENT",
+      [
+        "docgen",
+        "template",
+        "blob"
+      ]
+    ]
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "repository": "Query-farm/vgi-docgen",
+  "revision": "v0.4.0",
+  "captured_at": "2026-11-14T20:40:45.944940+00:00",
+  "default_schema": "main",
+  "scope": "all_public_functions_and_tables",
+  "complete": true,
+  "evidence": [
+    {
+      "path": "coverage/catalog-provenance.json",
+      "sha256": "2587859eea4f6fc0b0cca4eaecf5ae0929441e14ccccc0e1f29f6600e0ec014f",
+      "description": "Precise runtime/source identities and scope of compatibility review."
+    },
+    {
+      "path": "coverage/released-functions.json",
+      "sha256": "e6e53c846ec843a18d7dba7dcf7eced5aa82802166d1842f75b07177df18a019",
+      "description": "Complete actual worker-filtered duckdb_functions() export; physical sample_templates table and empty view inventory retained."
+    },
+    {
+      "path": "coverage/released-tables.json",
+      "sha256": "2a57703eef2a872e05f1e70b1c0d90b9f52cd4466d69859b4a5a47a3735e9e15",
+      "description": "Complete actual worker-filtered duckdb_tables() export; physical sample_templates table and empty view inventory retained."
+    },
+    {
+      "path": "coverage/released-views.json",
+      "sha256": "59a63e198ef86a1ac5fff597d4df541b6a4d980f88f284b3a89d4cf14f43df1a",
+      "description": "Complete actual worker-filtered duckdb_views() export; physical sample_templates table and empty view inventory retained."
+    },
+    {
+      "path": "coverage/released-database.json",
+      "sha256": "219c33dea8ed37a4743ad35533bbfa39ba44d63937fd6e690f3a3071350d9c4d",
+      "description": "Actual catalog title/subtitle/metadata."
+    }
+  ],
+  "objects": [
+    {
+      "schema": "main",
+      "name": "docgen_merge",
+      "kind": "function",
+      "signatures": [
+        "docgen_merge(TABLE, VARCHAR, BOOLEAN) -> TABLE"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "docgen_render",
+      "kind": "function",
+      "signatures": [
+        "docgen_render(VARCHAR, ANY) -> BLOB"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "docgen_render",
+      "kind": "function",
+      "signatures": [
+        "docgen_render(VARCHAR, ANY, BOOLEAN) -> BLOB"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "docgen_render",
+      "kind": "function",
+      "signatures": [
+        "docgen_render(BLOB, ANY) -> BLOB"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "docgen_render",
+      "kind": "function",
+      "signatures": [
+        "docgen_render(BLOB, ANY, BOOLEAN) -> BLOB"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "sample_templates",
+      "kind": "table",
+      "signatures": [
+        "TABLE(name VARCHAR,path VARCHAR,field_count INTEGER,fields VARCHAR,description VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    }
+  ]
+}

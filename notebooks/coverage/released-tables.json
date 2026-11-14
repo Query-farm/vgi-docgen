@@ -1,0 +1,49 @@
+{
+  "query": "SELECT * FROM duckdb_tables() WHERE database_name='docgen'",
+  "columns": [
+    "database_name",
+    "database_oid",
+    "schema_name",
+    "schema_oid",
+    "table_name",
+    "table_oid",
+    "comment",
+    "tags",
+    "internal",
+    "temporary",
+    "has_primary_key",
+    "estimated_size",
+    "column_count",
+    "index_count",
+    "check_constraint_count",
+    "sql"
+  ],
+  "rows": [
+    [
+      "docgen",
+      22592,
+      "main",
+      22593,
+      "sample_templates",
+      22729,
+      "The DOCX templates the worker ships, with their path and template variables (discovery table).",
+      {
+        "domain": "documents",
+        "vgi.category": "render",
+        "vgi.doc_llm": "## `sample_templates`\n\nA **browsable table** (no arguments) listing the DOCX templates the worker ships, so an agent can render a real document without supplying a file. One row per bundled template:\n\n- `name` (`VARCHAR`) -- logical template name, e.g. `sample_invoice`.\n- `path` (`VARCHAR`) -- the absolute filesystem path to pass as the `template` argument of `docgen_render` / `docgen_merge`.\n- `field_count` (`INTEGER`) -- how many placeholder fields the template has.\n- `fields` (`VARCHAR`) -- the comma-separated `{{ placeholder }}` names; these are exactly the keys the `STRUCT` data argument must provide.\n- `description` (`VARCHAR`) -- what the template is for.\n\nRead `path` and `fields` from this table, then call `docgen_render(path, {field: value, ...})` to produce a document.",
+        "vgi.doc_md": "# `sample_templates`\n\nRegistry of the DOCX templates bundled with the worker, so you can render a real document out of the box.\n\n## Columns\n\n- `name` (`VARCHAR`) -- logical template name.\n- `path` (`VARCHAR`) -- absolute path to pass as the `template` argument.\n- `field_count` (`INTEGER`) -- number of placeholder fields.\n- `fields` (`VARCHAR`) -- comma-separated placeholder names to supply as data.\n- `description` (`VARCHAR`) -- what the template is for.\n\nLook up a template's `path` and `fields` here, then feed them to `docgen_render` or `docgen_merge`.",
+        "vgi.example_queries": "[{\"description\": \"List every bundled template with its path and the placeholder fields it expects.\", \"sql\": \"SELECT name, path, fields FROM docgen.main.sample_templates ORDER BY name\"}, {\"description\": \"Count how many document templates the worker ships out of the box.\", \"sql\": \"SELECT count(*) AS template_count FROM docgen.main.sample_templates\"}]",
+        "vgi.keywords": "[\"sample templates\", \"template registry\", \"discovery\", \"docx\", \"placeholders\", \"fields\", \"template path\", \"sample_invoice\", \"invoice template\", \"browse templates\"]",
+        "vgi.title": "Bundled Document Templates"
+      },
+      false,
+      false,
+      true,
+      0,
+      5,
+      1,
+      0,
+      "CREATE TABLE sample_templates(\"name\" VARCHAR, path VARCHAR NOT NULL, field_count INTEGER NOT NULL, fields VARCHAR NOT NULL, description VARCHAR NOT NULL, PRIMARY KEY(\"name\"));"
+    ]
+  ]
+}

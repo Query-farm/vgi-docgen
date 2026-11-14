@@ -1,0 +1,11 @@
+{
+  "repository": "Query-farm/vgi-docgen",
+  "release_tag": "v0.4.0",
+  "release_revision": "962d95bc0119361e6264d3bb9289346c60299ee0",
+  "current_public_revision": "04f056e47c32e3cea7fe57a8d47bfb35cd5db4de",
+  "engine": "Haybarn2.0.0rc11 / VGI e75482339d",
+  "released_launch": "uvx --from git+https://github.com/Query-farm/vgi-docgen@v0.4.0 vgi-docgen",
+  "comparison": "Exhaustive public-main registration at04f056e47c32e3cea7fe57a8d47bfb35cd5db4de finds docgen_render (four overloads), docgen_merge and the sample_templates table, with no reference views or other public/authentication/write surfaces. All registration identities and signatures match the actual released catalog. Complete release-to-current implementation diff changes metadata and composed examples only; core rendering/merge/discovery behavior and dependencies are unchanged. Current-interface mappings are compatibility-reviewed against the actual released runtime. No current build/exact-current execution is claimed.",
+  "data_isolation": "Empty temporary SQL-secret storage; persistent secrets disabled. Synthetic names/orders/amounts and an original notebook template. Documents written only to ignored local artifacts; no real order, account, billing or sending.",
+  "captured_at": "2026-11-14T20:40:45.944940+00:00"
+}

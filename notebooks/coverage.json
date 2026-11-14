@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "catalogs": {
+    "released": {
+      "path": "coverage/catalog-released.json",
+      "sha256": "8ca94a4b465f0bd3b51cf5fcff128d614609c2cfa05882500cdca8ba374dc332",
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_ortools",
+        "reviewed_at": "2026-11-14T20:40:45.944940+00:00",
+        "catalog_sha256": "8ca94a4b465f0bd3b51cf5fcff128d614609c2cfa05882500cdca8ba374dc332",
+        "notes": "All three named public surfaces retained. Four scalar overloads count once; optional PDF modes remain part of that surface, not excluded from denominator. Exhaustive public-main registration at04f056e47c32e3cea7fe57a8d47bfb35cd5db4de finds docgen_render (four overloads), docgen_merge and the sample_templates table, with no reference views or other public/authentication/write surfaces. All registration identities and signatures match the actual released catalog. Complete release-to-current implementation diff changes metadata and composed examples only; core rendering/merge/discovery behavior and dependencies are unchanged. Current-interface mappings are compatibility-reviewed against the actual released runtime. No current build/exact-current execution is claimed."
+      }
+    },
+    "current": {
+      "path": "coverage/catalog-current.json",
+      "sha256": "010a706f8be223605ee23f5715d279b45f9a218e2b42e93e988772dce12b15a0",
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_ortools",
+        "reviewed_at": "2026-11-14T20:40:45.944940+00:00",
+        "catalog_sha256": "010a706f8be223605ee23f5715d279b45f9a218e2b42e93e988772dce12b15a0",
+        "notes": "All three named public surfaces retained. Four scalar overloads count once; optional PDF modes remain part of that surface, not excluded from denominator. Exhaustive public-main registration at04f056e47c32e3cea7fe57a8d47bfb35cd5db4de finds docgen_render (four overloads), docgen_merge and the sample_templates table, with no reference views or other public/authentication/write surfaces. All registration identities and signatures match the actual released catalog. Complete release-to-current implementation diff changes metadata and composed examples only; core rendering/merge/discovery behavior and dependencies are unchanged. Current-interface mappings are compatibility-reviewed against the actual released runtime. No current build/exact-current execution is claimed."
+      }
+    }
+  },
+  "notebooks": [
+    {
+      "path": "01_reconcile_generated_documents.ipynb",
+      "sha256": "732e11891b08323a9dfe303fc423b59872da3851572830974f42b025c4853789",
+      "execution": {
+        "path": "coverage/run-01.json",
+        "sha256": "f69a62597300131eb808fd877a239c2b7bdae098b8142344c4efff1e3e9eb7d9"
+      }
+    }
+  ],
+  "examples": [
+    {
+      "object": {
+        "schema": "main",
+        "name": "sample_templates"
+      },
+      "notebook": "01_reconcile_generated_documents.ipynb",
+      "sql": [
+        {
+          "cell": "75259137",
+          "reference": "docgen.main.sample_templates"
+        }
+      ],
+      "narrative_cells": [
+        "ca2b54db"
+      ],
+      "result_cells": [
+        "docgen-registry-result",
+        "docgen-preview-result"
+      ],
+      "interpretation_cells": [
+        "docgen-preview-result"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_ortools",
+        "reviewed_at": "2026-11-14T20:40:45.944940+00:00",
+        "notebook_sha256": "732e11891b08323a9dfe303fc423b59872da3851572830974f42b025c4853789",
+        "catalog_sha256": [
+          "8ca94a4b465f0bd3b51cf5fcff128d614609c2cfa05882500cdca8ba374dc332",
+          "010a706f8be223605ee23f5715d279b45f9a218e2b42e93e988772dce12b15a0"
+        ],
+        "purpose": "Discover required fields and the actual worker-local template path, then use them to render a real summary.",
+        "finding": "One bundled sample_invoice template declares customer/total. The discovered path drives a materialized render of Acorn Studio with the SQL-calculated net amount. Returned XML includes the expected customer/net and no unresolved tags. Its two fields explain why the six-field companion is needed for the complete discount breakdown."
+      }
+    },
+    {
+      "object": {
+        "schema": "main",
+        "name": "docgen_render"
+      },
+      "notebook": "01_reconcile_generated_documents.ipynb",
+      "sql": [
+        {
+          "cell": "a80e8539",
+          "reference": "docgen.main.docgen_render"
+        }
+      ],
+      "narrative_cells": [
+        "f08d91e8"
+      ],
+      "result_cells": [
+        "101faac2",
+        "a5108408",
+        "e5457d2a"
+      ],
+      "interpretation_cells": [
+        "101faac2"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_ortools",
+        "reviewed_at": "2026-11-14T20:40:45.944940+00:00",
+        "notebook_sha256": "732e11891b08323a9dfe303fc423b59872da3851572830974f42b025c4853789",
+        "catalog_sha256": [
+          "8ca94a4b465f0bd3b51cf5fcff128d614609c2cfa05882500cdca8ba374dc332",
+          "010a706f8be223605ee23f5715d279b45f9a218e2b42e93e988772dce12b15a0"
+        ],
+        "purpose": "Render exact SQL-formatted values into one document per customer and check content beyond a BLOB header.",
+        "finding": "Five returned customer documents contain exactly eight expected paragraphs each, including rounded gross/discount/net strings. The10→15percent experiment changes net amounts but preserves source gross and document counts. Malformed template bytes produce NULL; subsequent valid rendering succeeds. No PDF mode or office layout fidelity is claimed."
+      }
+    },
+    {
+      "object": {
+        "schema": "main",
+        "name": "docgen_merge"
+      },
+      "notebook": "01_reconcile_generated_documents.ipynb",
+      "sql": [
+        {
+          "cell": "a80e8539",
+          "reference": "docgen.main.docgen_merge"
+        }
+      ],
+      "narrative_cells": [
+        "f08d91e8"
+      ],
+      "result_cells": [
+        "101faac2",
+        "1f29b7e0",
+        "e5457d2a"
+      ],
+      "interpretation_cells": [
+        "1f29b7e0"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_ortools",
+        "reviewed_at": "2026-11-14T20:40:45.944940+00:00",
+        "notebook_sha256": "732e11891b08323a9dfe303fc423b59872da3851572830974f42b025c4853789",
+        "catalog_sha256": [
+          "8ca94a4b465f0bd3b51cf5fcff128d614609c2cfa05882500cdca8ba374dc332",
+          "010a706f8be223605ee23f5715d279b45f9a218e2b42e93e988772dce12b15a0"
+        ],
+        "purpose": "Reconcile whole-relation merging against the exact multiset of customer blocks before comparing package size.",
+        "finding": "The merged BLOB contains every verified customer summary exactly once. Five individual files versus one merged package are measured in KiB without treating byte size/hash equality as semantic correctness. Empty merge input returns zero rows. All eight SQL invariants plus recovery and document-content checks pass; no ordering guarantee is assumed."
+      }
+    }
+  ]
+}
