@@ -50,8 +50,15 @@ LOAD vgi;
 
 ATTACH 'docgen' AS docgen (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-docgen@v0.4.0 vgi-docgen');
 
--- Render one document per row, filling the template with a STRUCT of fields.
-SELECT docgen.main.docgen_render('invoice.docx', {customer: 'Ada', total: '99.50'}) AS doc;
+-- Look up the bundled sample_invoice template in sample_templates and render one
+-- DOCX invoice per customer row (no template file of your own needed).
+WITH tpl AS (SELECT path FROM docgen.main.sample_templates WHERE name = 'sample_invoice'),
+invoices AS (SELECT * FROM (VALUES ('Ada Lovelace', '99.50'), ('Grace Hopper', '42.00'),
+                                   ('Alan Turing', '12.75')) AS t(customer, total)),
+docs AS (SELECT i.customer, docgen.main.docgen_render(tpl.path, {customer: i.customer, total: i.total}) AS doc
+         FROM invoices AS i CROSS JOIN tpl)
+SELECT customer, octet_length(doc) AS bytes, doc[1:2] = 'PK'::BLOB AS is_docx
+FROM docs ORDER BY customer;
 
 -- Non-DOCX inline bytes degrade to a clean NULL rather than crashing the worker.
 SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc;

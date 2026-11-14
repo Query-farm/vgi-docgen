@@ -47,6 +47,23 @@ WHERE docgen.docgen_render('test/sql/data/invoice.docx',
 ----
 3
 
+# Composed: sample_templates -> docgen_render. The bundled template path is looked
+# up by name (never hard-coded); an order naming a template that doesn't exist
+# keeps its row via the LEFT JOIN and renders a NULL document.
+query II
+WITH orders AS (
+  SELECT * FROM (VALUES ('Ada Lovelace', 'sample_invoice', '99.50'),
+                        ('Grace Hopper', 'sample_letter', '42.00'),
+                        ('Alan Turing', 'sample_invoice', '12.75')) AS t(customer, template_name, total))
+SELECT o.customer,
+       docgen.docgen_render(t.path, {customer: o.customer, total: o.total})[1:2] = 'PK'::BLOB
+FROM orders AS o LEFT JOIN docgen.sample_templates AS t ON t.name = o.template_name
+ORDER BY o.customer;
+----
+Ada Lovelace	true
+Alan Turing	true
+Grace Hopper	NULL
+
 # NULL template -> NULL output (degrade, never crash).
 query I
 SELECT docgen.docgen_render(NULL::VARCHAR, {customer: 'X', total: '0', items: []}) IS NULL;

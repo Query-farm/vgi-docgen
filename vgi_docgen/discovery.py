@@ -129,6 +129,21 @@ _SAMPLE_TEMPLATES_KEYWORDS = (
     "template path, sample_invoice, invoice template, browse templates"
 )
 
+# Composed example (sample_templates -> docgen_render): discover a bundled template
+# and render a filled preview straight from its row, so the path never has to be
+# copied by hand. Offline + deterministic.
+PREVIEW_FROM_REGISTRY_EXAMPLE = {
+    "description": (
+        "Discover the bundled sample_invoice template and render a filled preview from its "
+        "path in the same query, alongside the placeholder fields it expects."
+    ),
+    "sql": (
+        "SELECT t.name, t.fields, octet_length(docgen.main.docgen_render(t.path, "
+        "{customer: 'Ada Lovelace', total: '99.50'})) > 0 AS rendered "
+        "FROM docgen.main.sample_templates AS t WHERE t.name = 'sample_invoice' ORDER BY t.name"
+    ),
+}
+
 _SAMPLE_TEMPLATES_EXAMPLE_QUERIES = json.dumps(
     [
         {
@@ -139,6 +154,7 @@ _SAMPLE_TEMPLATES_EXAMPLE_QUERIES = json.dumps(
             "description": "Count how many document templates the worker ships out of the box.",
             "sql": "SELECT count(*) AS template_count FROM docgen.main.sample_templates",
         },
+        PREVIEW_FROM_REGISTRY_EXAMPLE,
     ]
 )
 
@@ -172,6 +188,10 @@ class SampleTemplatesFunction(TableFunctionGenerator[_NoArgs]):
             FunctionExample(
                 sql="SELECT name, path, fields FROM docgen.main.sample_templates ORDER BY name",
                 description="List the bundled templates with their placeholder fields",
+            ),
+            FunctionExample(
+                sql=PREVIEW_FROM_REGISTRY_EXAMPLE["sql"],
+                description=PREVIEW_FROM_REGISTRY_EXAMPLE["description"],
             ),
         ]
 

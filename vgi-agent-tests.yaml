@@ -18,3 +18,9 @@ tasks:
   - name: sample_template_fields
     reference_sql: "SELECT fields = 'customer, total' AS ok FROM docgen.main.sample_templates WHERE name = 'sample_invoice'"
     ignore_column_names: true
+  - name: render_with_per_row_template
+    # Composes sample_templates (path lookup by name) with docgen_render. A LEFT
+    # JOIN keeps the order naming the non-existent 'sample_letter' (its NULL path
+    # renders to NULL -> produced=false); an inner join drops it and fails.
+    reference_sql: "WITH orders AS (SELECT * FROM (VALUES ('Ada Lovelace', 'sample_invoice', '99.50'), ('Grace Hopper', 'sample_letter', '42.00'), ('Alan Turing', 'sample_invoice', '12.75')) AS t(customer, template_name, total)) SELECT o.customer, docgen.main.docgen_render(t.path, {customer: o.customer, total: o.total}) IS NOT NULL AS produced FROM orders AS o LEFT JOIN docgen.main.sample_templates AS t ON t.name = o.template_name ORDER BY o.customer"
+    ignore_column_names: true

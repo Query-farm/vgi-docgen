@@ -156,8 +156,43 @@ _RENDER_KEYWORDS = (
 # four docgen_render overloads (the linter aggregates examples by function name).
 # The native duckdb_functions().examples carrier drops descriptions, so this tag
 # is the description-bearing surface. Each SQL mirrors an overload's own example.
+# Shared PDF example: renders the BUNDLED sample template, so the only reason it
+# can yield NULL is a missing LibreOffice (a bare 'invoice.docx' never resolves,
+# which made the old "NULL when LibreOffice is absent" description misleading).
+_PDF_EXAMPLE_SQL = (
+    f"SELECT docgen.main.docgen_render('{SAMPLE_TEMPLATE_PATH}', {{customer: 'Ada', total: '99.50'}}, true) AS doc"
+)
+PDF_EXAMPLE = {
+    "description": (
+        "Request PDF output (pdf=true) from the bundled sample template via headless "
+        "LibreOffice; NULL when LibreOffice is absent."
+    ),
+    "sql": _PDF_EXAMPLE_SQL,
+}
+
+# Composed example (sample_templates -> docgen_render): look the bundled template's
+# path up in the discovery table instead of hard-coding a machine-specific path,
+# then render one invoice per customer row of a relation. Offline + deterministic.
+RENDER_PER_CUSTOMER_EXAMPLE = {
+    "description": (
+        "Look up the bundled sample_invoice template's path in sample_templates and render "
+        "one DOCX invoice per customer row, reporting each document's size and whether it "
+        "carries the DOCX (ZIP 'PK') magic."
+    ),
+    "sql": (
+        "WITH tpl AS (SELECT path FROM docgen.main.sample_templates WHERE name = 'sample_invoice'), "
+        "invoices AS (SELECT * FROM (VALUES ('Ada Lovelace', '99.50'), ('Grace Hopper', '42.00'), "
+        "('Alan Turing', '12.75')) AS t(customer, total)), "
+        "docs AS (SELECT i.customer, docgen.main.docgen_render(tpl.path, "
+        "{customer: i.customer, total: i.total}) AS doc FROM invoices AS i CROSS JOIN tpl) "
+        "SELECT customer, octet_length(doc) AS bytes, doc[1:2] = 'PK'::BLOB AS is_docx "
+        "FROM docs ORDER BY customer"
+    ),
+}
+
 _RENDER_EXAMPLE_QUERIES = json.dumps(
     [
+        RENDER_PER_CUSTOMER_EXAMPLE,
         {
             "description": "Render an invoice from the bundled sample template and confirm a non-empty DOCX BLOB.",
             "sql": (
@@ -166,10 +201,7 @@ _RENDER_EXAMPLE_QUERIES = json.dumps(
                 "{customer: 'Ada', total: '99.50'})) > 0 AS ok"
             ),
         },
-        {
-            "description": "Request PDF output (pdf=true) via headless LibreOffice; NULL when LibreOffice is absent.",
-            "sql": "SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc",
-        },
+        PDF_EXAMPLE,
         {
             "description": "Render from inline template BLOB bytes; non-DOCX bytes yield a clean NULL.",
             "sql": "SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc",
@@ -213,6 +245,7 @@ _RENDER_EXECUTABLE_EXAMPLES = json.dumps(
                 "{customer: 'Ada Lovelace', total: '99.50'})) > 0 AS ok"
             ),
         },
+        RENDER_PER_CUSTOMER_EXAMPLE,
         {
             "description": "A NULL template passes straight through to a NULL document (NULL-in, NULL-out).",
             "sql": "SELECT docgen.main.docgen_render(NULL::VARCHAR, {customer: 'Ada'}) AS doc",
@@ -248,6 +281,10 @@ class DocgenRenderPath(ScalarFunction):
                 ),
                 description="Render an invoice from the bundled sample template",
             ),
+            FunctionExample(
+                sql=RENDER_PER_CUSTOMER_EXAMPLE["sql"],
+                description=RENDER_PER_CUSTOMER_EXAMPLE["description"],
+            ),
         ]
 
     @classmethod
@@ -280,8 +317,8 @@ class DocgenRenderPathPdf(ScalarFunction):
         tags = dict(_RENDER_TAGS)
         examples = [
             FunctionExample(
-                sql="SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc",
-                description="Render to PDF (requires LibreOffice on PATH; NULL otherwise)",
+                sql=_PDF_EXAMPLE_SQL,
+                description="Render the bundled sample template to PDF (requires LibreOffice on PATH; NULL otherwise)",
             ),
         ]
 

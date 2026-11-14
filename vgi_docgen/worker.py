@@ -19,9 +19,9 @@ import sys
 from vgi import Worker
 from vgi.catalog import Catalog, Schema
 
-from vgi_docgen.discovery import SAMPLE_TEMPLATES_TABLE
+from vgi_docgen.discovery import PREVIEW_FROM_REGISTRY_EXAMPLE, SAMPLE_TEMPLATES_TABLE
 from vgi_docgen.meta import keywords_json
-from vgi_docgen.scalars import SCALAR_FUNCTIONS
+from vgi_docgen.scalars import PDF_EXAMPLE, RENDER_PER_CUSTOMER_EXAMPLE, SCALAR_FUNCTIONS
 from vgi_docgen.tables import SAMPLE_TEMPLATE_PATH, TABLE_FUNCTIONS
 
 _FUNCTIONS: list[type] = [*SCALAR_FUNCTIONS, *TABLE_FUNCTIONS]
@@ -167,6 +167,20 @@ _AGENT_TEST_TASKS = json.dumps(
             ),
         },
         {
+            "name": "render_with_per_row_template",
+            "prompt": (
+                "An orders relation names, per row, which of the docgen worker's bundled templates "
+                "to use: ('Ada Lovelace', 'sample_invoice', '99.50'), ('Grace Hopper', "
+                "'sample_letter', '42.00') and ('Alan Turing', 'sample_invoice', '12.75') as "
+                "(customer, template_name, total). Look each template up by name in the worker's "
+                "own catalog (do not hard-code a path) and render one document per order with "
+                "the customer and total as template fields. Keep every order, even one whose "
+                "template does not exist. Return two columns, customer (VARCHAR) and produced "
+                "(BOOLEAN, true when a document BLOB was produced), one row per order, ordered "
+                "by customer."
+            ),
+        },
+        {
             "name": "sample_template_fields",
             "prompt": (
                 "Using only the docgen worker's own catalog, find the placeholder fields the "
@@ -179,23 +193,19 @@ _AGENT_TEST_TASKS = json.dumps(
 
 # VGI506/VGI515 representative example queries for the schema, as a described
 # JSON list ([{"description","sql"}]) so every example carries a human-readable
-# description. Catalog-qualified and self-contained: an unresolved template path
-# renders to a clean NULL, and an empty merge relation yields zero rows -- so
-# each query runs without error.
+# description. Catalog-qualified and self-contained: the composed examples look
+# the bundled template up in sample_templates and render real documents, inline
+# non-DOCX bytes render to a clean NULL, and an empty merge relation yields zero
+# rows -- so each query runs without error.
 _SCHEMA_EXAMPLE_QUERIES = json.dumps(
     [
-        {
-            "description": "Render one document per row, filling the template with a STRUCT of fields.",
-            "sql": "SELECT docgen.main.docgen_render('invoice.docx', {customer: 'Ada', total: '99.50'}) AS doc",
-        },
+        RENDER_PER_CUSTOMER_EXAMPLE,
+        PREVIEW_FROM_REGISTRY_EXAMPLE,
         {
             "description": "Non-DOCX inline bytes degrade to a clean NULL rather than crashing the worker.",
             "sql": "SELECT docgen.main.docgen_render('not a docx'::BLOB, {customer: 'Ada'}) AS doc",
         },
-        {
-            "description": "Request PDF output (pdf=true) via headless LibreOffice; NULL when LibreOffice is absent.",
-            "sql": "SELECT docgen.main.docgen_render('invoice.docx', {total: '99.50'}, true) AS doc",
-        },
+        PDF_EXAMPLE,
         {
             "description": "Merge a whole relation into one document; an empty input relation yields zero rows.",
             "sql": (
