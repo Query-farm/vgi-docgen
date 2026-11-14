@@ -180,3 +180,7 @@ Written by [Query.Farm](https://query.farm).
 
 Copyright 2026 Query Farm LLC - https://query.farm
 
+
+## Executable notebooks
+
+[Reconcile SQL amounts with generated documents](notebooks/README.md) uses the published worker, synthetic order summaries, DOCX content checks and a discount experiment.
