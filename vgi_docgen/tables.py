@@ -33,7 +33,6 @@ from typing import Annotated, ClassVar
 import pyarrow as pa
 from vgi.arguments import Arg, TableInput
 from vgi.invocation import BindResponse
-from vgi.metadata import FunctionExample
 from vgi.table_buffering_function import TableBufferingParams
 from vgi.table_function import BindParams
 from vgi_rpc import OutputCollector
@@ -102,14 +101,24 @@ _MERGE_KEYWORDS = (
 )
 
 # Absolute path to the bundled sample DOCX template, resolved at import time so
-# examples resolve regardless of the worker's working directory.
+# the sample_templates discovery table can report it wherever the worker runs.
 SAMPLE_TEMPLATE_PATH = str(Path(__file__).resolve().parent / "data" / "sample_invoice.docx")
 
+# Examples never hard-code SAMPLE_TEMPLATE_PATH: it is specific to the machine the
+# metadata was captured on, so a copied example would fail anywhere else. They ask
+# the attached worker for its own bundled template's path instead.
+SAMPLE_TEMPLATE_SQL = "(SELECT path FROM docgen.main.sample_templates WHERE name = 'sample_invoice')"
+
 # VGI509 guaranteed-runnable, catalog-qualified examples. They merge real rows
-# against the worker's BUNDLED sample template (resolved by absolute path), so
-# the example produces an actual non-empty merged document -- self-contained and
-# re-runnable with no external table or user-supplied file. ``expected_result``
-# is omitted deliberately.
+# against the worker's BUNDLED sample template, so the example produces an actual
+# non-empty merged document -- self-contained and re-runnable with no external
+# table or user-supplied file. ``template :=`` must be a constant (DuckDB rejects
+# a subquery there), so each is a two-statement list: load the bundled template's
+# path into the session variable ``tpl``, then merge with ``getvariable('tpl')``.
+# That is also why docgen_merge carries no single-statement ``vgi.example_queries``
+# / ``Meta.examples``: the only one-statement form would hard-code a path.
+# ``expected_result`` is omitted deliberately.
+_SET_TEMPLATE = f"SET VARIABLE tpl = {SAMPLE_TEMPLATE_SQL}"
 _MERGE_EXECUTABLE_EXAMPLES = json.dumps(
     [
         {
@@ -117,12 +126,26 @@ _MERGE_EXECUTABLE_EXAMPLES = json.dumps(
                 "Merge two rows against the worker's bundled sample template into "
                 "ONE document and confirm a non-empty DOCX BLOB is produced."
             ),
-            "sql": (
+            "sql": [
+                _SET_TEMPLATE,
                 "SELECT octet_length(doc) > 0 AS ok FROM docgen.main.docgen_merge("
                 "(SELECT * FROM (VALUES ('Ada', '99.50'), ('Grace', '42.00')) "
-                f"AS t(customer, total)), template := '{SAMPLE_TEMPLATE_PATH}')"
+                "AS t(customer, total)), template := getvariable('tpl'))",
+            ],
+        },
+        {
+            "description": (
+                "Merge three invoices into one document and report its size and whether it "
+                "carries the DOCX (ZIP 'PK') magic."
             ),
-        }
+            "sql": [
+                _SET_TEMPLATE,
+                "SELECT octet_length(doc) AS bytes, doc[1:2] = 'PK'::BLOB AS is_docx "
+                "FROM docgen.main.docgen_merge((SELECT * FROM (VALUES ('Ada Lovelace', '99.50'), "
+                "('Grace Hopper', '42.00'), ('Alan Turing', '12.75')) AS t(customer, total)), "
+                "template := getvariable('tpl'))",
+            ],
+        },
     ]
 )
 
@@ -186,23 +209,6 @@ class DocgenMerge(SinkBuffer[MergeArgs, DrainState]):
             # VGI413: name one of the schema's declared vgi.categories.
             "vgi.category": "merge",
             "vgi.executable_examples": _MERGE_EXECUTABLE_EXAMPLES,
-            # VGI515: described example queries (descriptions the native
-            # duckdb_functions().examples carrier drops).
-            "vgi.example_queries": json.dumps(
-                [
-                    {
-                        "description": (
-                            "Merge two rows against the bundled sample template into ONE document "
-                            "and confirm a non-empty DOCX BLOB is produced."
-                        ),
-                        "sql": (
-                            "SELECT octet_length(doc) > 0 AS ok FROM docgen.main.docgen_merge("
-                            "(SELECT * FROM (VALUES ('Ada', '99.50'), ('Grace', '42.00')) "
-                            f"AS t(customer, total)), template := '{SAMPLE_TEMPLATE_PATH}')"
-                        ),
-                    }
-                ]
-            ),
             # VGI307/VGI321/VGI414: structured static result schema (migrated from
             # the retired free-form vgi.result_columns_md).
             "vgi.result_columns_schema": json.dumps(
@@ -218,16 +224,7 @@ class DocgenMerge(SinkBuffer[MergeArgs, DrainState]):
                 ]
             ),
         }
-        examples = [
-            FunctionExample(
-                sql=(
-                    "SELECT octet_length(doc) > 0 AS ok FROM docgen.main.docgen_merge("
-                    "(SELECT * FROM (VALUES ('Ada', '99.50'), ('Grace', '42.00')) "
-                    f"AS t(customer, total)), template := '{SAMPLE_TEMPLATE_PATH}')"
-                ),
-                description="Merge two rows into one document using the bundled sample template",
-            )
-        ]
+        # No single-statement examples: see _MERGE_EXECUTABLE_EXAMPLES.
 
     @classmethod
     def on_bind(cls, params: BindParams[MergeArgs]) -> BindResponse:

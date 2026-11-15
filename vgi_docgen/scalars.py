@@ -50,7 +50,7 @@ from .schema_utils import to_context
 
 # Absolute path to the bundled sample DOCX template (shared with tables.py), so
 # examples render a real document regardless of the worker's working directory.
-from .tables import SAMPLE_TEMPLATE_PATH
+from .tables import SAMPLE_TEMPLATE_SQL
 
 
 def _render_one(ref: TemplateRef | None, ctx_value: Any, want_pdf: bool) -> bytes | None:
@@ -160,7 +160,7 @@ _RENDER_KEYWORDS = (
 # can yield NULL is a missing LibreOffice (a bare 'invoice.docx' never resolves,
 # which made the old "NULL when LibreOffice is absent" description misleading).
 _PDF_EXAMPLE_SQL = (
-    f"SELECT docgen.main.docgen_render('{SAMPLE_TEMPLATE_PATH}', {{customer: 'Ada', total: '99.50'}}, true) AS doc"
+    f"SELECT docgen.main.docgen_render({SAMPLE_TEMPLATE_SQL}, {{customer: 'Ada', total: '99.50'}}, true) AS doc"
 )
 PDF_EXAMPLE = {
     "description": (
@@ -197,7 +197,7 @@ _RENDER_EXAMPLE_QUERIES = json.dumps(
             "description": "Render an invoice from the bundled sample template and confirm a non-empty DOCX BLOB.",
             "sql": (
                 "SELECT octet_length(docgen.main.docgen_render("
-                f"'{SAMPLE_TEMPLATE_PATH}', "
+                f"{SAMPLE_TEMPLATE_SQL}, "
                 "{customer: 'Ada', total: '99.50'})) > 0 AS ok"
             ),
         },
@@ -230,7 +230,7 @@ _RENDER_TAGS = {
 # VGI509 guaranteed-runnable, catalog-qualified examples. Each is self-contained
 # and re-runnable against an attached ``docgen`` worker WITHOUT any external
 # table: the first renders a real document from the worker's BUNDLED sample
-# template (absolute path), and the rest exercise the documented NULL-vs-crash
+# template (its path looked up in sample_templates), and the rest exercise the documented NULL-vs-crash
 # discipline. ``expected_result`` is omitted deliberately.
 _RENDER_EXECUTABLE_EXAMPLES = json.dumps(
     [
@@ -241,7 +241,7 @@ _RENDER_EXECUTABLE_EXAMPLES = json.dumps(
             ),
             "sql": (
                 "SELECT octet_length(docgen.main.docgen_render("
-                f"'{SAMPLE_TEMPLATE_PATH}', "
+                f"{SAMPLE_TEMPLATE_SQL}, "
                 "{customer: 'Ada Lovelace', total: '99.50'})) > 0 AS ok"
             ),
         },
@@ -276,7 +276,7 @@ class DocgenRenderPath(ScalarFunction):
             FunctionExample(
                 sql=(
                     "SELECT octet_length(docgen.main.docgen_render("
-                    f"'{SAMPLE_TEMPLATE_PATH}', "
+                    f"{SAMPLE_TEMPLATE_SQL}, "
                     "{customer: 'Ada', total: '99.50'})) > 0 AS ok"
                 ),
                 description="Render an invoice from the bundled sample template",
