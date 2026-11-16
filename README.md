@@ -21,7 +21,7 @@ the merge. PDF output is **optional** and uses headless LibreOffice if present.
 
 ```sql
 INSTALL vgi FROM community; LOAD vgi;
-ATTACH 'docgen' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-docgen@v0.4.1 vgi-docgen');
+ATTACH 'docgen' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-docgen@v0.4.2 vgi-docgen');
 
 -- One rendered DOCX per row (scalar): template + a STRUCT of row data -> BLOB
 SELECT docgen.docgen_render('invoice.docx', {customer: name, total: amount})
@@ -48,7 +48,7 @@ The worker isn't on PyPI; [uv](https://docs.astral.sh/uv/) runs it straight from
 INSTALL vgi FROM community;
 LOAD vgi;
 
-ATTACH 'docgen' AS docgen (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-docgen@v0.4.1 vgi-docgen');
+ATTACH 'docgen' AS docgen (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-docgen@v0.4.2 vgi-docgen');
 
 -- Look up the bundled sample_invoice template in sample_templates and render one
 -- DOCX invoice per customer row (no template file of your own needed).
