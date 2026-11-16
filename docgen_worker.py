@@ -1,5 +1,5 @@
 # /// script
-# requires-python = ">=3.13"
+# requires-python = ">=3.14"
 # dependencies = [
 #     "vgi-python[http]>=0.52.2,<0.53",
 #     "docxtpl>=0.16",

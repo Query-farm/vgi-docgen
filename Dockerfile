@@ -7,7 +7,7 @@
 # the optional PDF path shells out to a headless LibreOffice, which is NOT installed
 # here (PDF requests degrade to NULL/clean error, exactly as in CI).
 # syntax=docker/dockerfile:1
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 ARG VERSION=0.0.0
 ARG GIT_COMMIT=unknown

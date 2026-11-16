@@ -63,7 +63,7 @@ def _render_one(ref: TemplateRef | None, ctx_value: Any, want_pdf: bool) -> byte
         if want_pdf:
             return core.to_pdf(docx)
         return docx
-    except (DocgenError, TypeError, ValueError):
+    except DocgenError, TypeError, ValueError:
         return None
 
 
