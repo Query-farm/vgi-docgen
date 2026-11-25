@@ -21,7 +21,7 @@ the merge. PDF output is **optional** and uses headless LibreOffice if present.
 
 ```sql
 INSTALL vgi FROM community; LOAD vgi;
-ATTACH 'docgen' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-docgen@v0.4.3 vgi-docgen');
+ATTACH 'docgen' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-docgen@v0.5.0 vgi-docgen');
 
 -- One rendered DOCX per row (scalar): template + a STRUCT of row data -> BLOB
 SELECT docgen.docgen_render('invoice.docx', {customer: name, total: amount})
@@ -40,6 +40,8 @@ SELECT doc FROM docgen.docgen_merge(
     template := 'invoice.docx');
 ```
 
+vgi-docgen 0.5.0 speaks VGI protocol 3.4, so it needs Haybarn 2.0.1 or newer (Haybarn 2.0.0 loads a 3.3 `vgi` extension that cannot attach it).
+
 ## Quick start
 
 The worker isn't on PyPI; [uv](https://docs.astral.sh/uv/) runs it straight from a tagged release on GitHub. `uvx` builds an isolated environment on the first ATTACH and reuses it afterwards:
@@ -48,7 +50,7 @@ The worker isn't on PyPI; [uv](https://docs.astral.sh/uv/) runs it straight from
 INSTALL vgi FROM community;
 LOAD vgi;
 
-ATTACH 'docgen' AS docgen (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-docgen@v0.4.3 vgi-docgen');
+ATTACH 'docgen' AS docgen (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-docgen@v0.5.0 vgi-docgen');
 
 -- Look up the bundled sample_invoice template in sample_templates and render one
 -- DOCX invoice per customer row (no template file of your own needed).
